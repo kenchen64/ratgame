@@ -186,4 +186,5 @@ app.get('/rank', async (req,res)=>{
   res.json({topClick, topSteal});
 });
 
-app.listen(3000, ()=>console.log('🚀 Server OK'));
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, ()=>console.log('Server OK'));
