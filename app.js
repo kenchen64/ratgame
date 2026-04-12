@@ -358,7 +358,7 @@ bot.hears('🌌 黑洞總量', async ctx=>{
 
 bot.hears('🔗 綁定錢包', async ctx=>{
   try{
-    const res = await axios.post(`${API}/me`,{
+    const res = await axios.post(`http://localhost:${PORT}/me`,{
       telegramId: ctx.from.id,
       username: ctx.from.username
     });
@@ -397,7 +397,7 @@ bot.on('text', async ctx=>{
   }
 
   try{
-    const res = await axios.post(`${API}/bind`,{
+    const res = await axios.post(`http://localhost:${PORT}/bind`,{
       telegramId: ctx.from.id,
       wallet: text
     });
