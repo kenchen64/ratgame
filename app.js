@@ -178,7 +178,14 @@ const menu = Markup.keyboard([
 ['💸 提領','🏆 排行榜']
 ]).resize();
 
-bot.start(ctx=>ctx.reply('🐭 Rat Game',menu));
+// ===== 開始 =====
+bot.start(ctx=>{
+  ctx.reply('🐭 遊戲開始', menu);
+});
+
+bot.hears('🎮 開始遊戲', ctx=>{
+  ctx.reply('🎮 已開始', menu);
+});
 
 bot.hears('🖱 點擊赚起司', async ctx=>{
   const res = await fetch(`http://localhost:${PORT}/click`,{
