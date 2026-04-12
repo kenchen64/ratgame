@@ -71,8 +71,12 @@ app.post('/click', async (req,res)=>{
   try{
     const user = await getUser(req.body.telegramId, req.body.username);
 
-    if(Date.now()-user.lastClick < 3000)
-      return res.json({msg:'⏳ 冷卻', balance:user.balance});
+    if(Date.now()-user.lastClick < 3000){
+  return res.json({
+    msg:'⏳ 點擊過快',
+    balance:user.balance
+  });
+}
 
     user.lastClick = Date.now();
     user.balance++;
@@ -85,22 +89,41 @@ app.post('/click', async (req,res)=>{
   }
 });
 
-// 偷
+// 偷取 隨機或指定
 app.post('/steal', async (req,res)=>{
   try{
     const user = await getUser(req.body.telegramId);
 
-    // 👉 抓所有其他玩家
-    const players = await User.find({
-      telegramId: { $ne: user.telegramId },
-      balance: { $gt: 0 }
-    });
+    let target;
 
-    if(players.length === 0)
-      return res.json({msg:'❌ 沒有可偷的玩家'});
+    if(req.body.target){
+      const t = req.body.target.replace('@','');
 
-    // 👉 隨機一個
-    const target = players[Math.floor(Math.random()*players.length)];
+      // 👉 username 或 id
+      target = await User.findOne({
+        $or:[
+          { username: t },
+          { telegramId: t }
+        ]
+      });
+
+      if(!target)
+        return res.json({msg:'❌ 找不到玩家'});
+    }
+    else{
+      const players = await User.find({
+        telegramId: { $ne: user.telegramId },
+        balance: { $gt: 0 }
+      });
+
+      if(players.length === 0)
+        return res.json({msg:'❌ 沒人可偷'});
+
+      target = players[Math.floor(Math.random()*players.length)];
+    }
+
+    if(target.telegramId === user.telegramId)
+      return res.json({msg:'❌ 不能偷自己'});
 
     if(Date.now() < target.shieldUntil)
       return res.json({msg:`🛡️ @${target.username} 有盾`});
@@ -115,10 +138,10 @@ app.post('/steal', async (req,res)=>{
     await user.save();
 
     res.json({
-      msg:`🐭 偷 @${target.username} 成功\n+${amount}`
+      msg:`🐭 偷 ${target.username}\n+${amount}`
     });
 
-  }catch{
+  }catch(e){
     res.json({msg:'error'});
   }
 });
@@ -238,6 +261,21 @@ app.get('/rank', async (req,res)=>{
   }
 });
 
+// 查錢包 TOKEN 數量
+app.get('/walletBalance', async (req,res)=>{
+  try{
+    const raw = await contract.balanceOf(req.query.wallet);
+    const dec = await contract.decimals();
+
+    res.json({
+      balance: Number(ethers.formatUnits(raw, dec))
+    });
+
+  }catch{
+    res.json({balance:0});
+  }
+});
+
 // ===== Bot =====
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
@@ -263,17 +301,32 @@ bot.hears('🖱 點擊赚起司', async ctx=>{
       telegramId:ctx.from.id,
       username:ctx.from.username
     });
+     if(data.msg){
+      return  ctx.reply(`${data.msg}\n🧀餘額: ${data.balance}`);
+    }
     ctx.reply(`🆔Telegram: ${ctx.from.id}\n👤用戶名: ${ctx.from.username}\n🧀餘額: ${data.balance}`);
   }catch{
     ctx.reply('❌ 錯誤');
   }
 });
 
-bot.hears('⚔️ 偷起司', async ctx=>{
-  const {data} = await axios.post(`http://localhost:${PORT}/steal`,{
-    telegramId:ctx.from.id
-  });
-  ctx.reply(data.msg);
+bot.hears('⚔️ 偷起司', ctx=>{
+  ctx.reply('輸入:\n/steal (隨機)\n/steal @username\n/steal id');
+});
+bot.command('steal', async ctx=>{
+  try{
+    const input = ctx.message.text.split(' ')[1];
+
+    const {data} = await axios.post(`http://localhost:${PORT}/steal`,{
+      telegramId: ctx.from.id,
+      target: input || null
+    });
+
+    ctx.reply(data.msg);
+
+  }catch{
+    ctx.reply('❌ 錯誤');
+  }
 });
 
 bot.hears('🛡️ 防護盾', async ctx=>{
@@ -295,9 +348,28 @@ bot.hears('🔗 綁定錢包', async ctx=>{
       username: ctx.from.username
     });
 
+    let tokenAmount = 0;
+
+    if(data.wallet){
+      try{
+        const res = await axios.get(`http://localhost:${PORT}/walletBalance`,{
+          params:{ wallet: data.wallet }
+        });
+        tokenAmount = res.data.balance;
+      }catch{}
+    }
+
+    waitWallet[ctx.from.id] = true;
+
     if(data.wallet){
       return ctx.reply(
-        `已綁定錢包:\n${data.wallet}\n\n請輸入新地址:`
+`已綁定錢包:
+${data.wallet}
+
+TOKEN_ADDRESS數量:
+${tokenAmount}
+
+請輸入新地址:`
       );
     }
 
