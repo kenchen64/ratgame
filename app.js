@@ -60,8 +60,22 @@ async function getUser(id, username='user'){
 
 // 取得自己（前端用）
 app.post('/me', async (req,res)=>{
-  const user = await getUser(req.body.telegramId, req.body.username);
-  res.json(user);
+  try{
+    if(!req.body.telegramId){
+      return res.json({error:'no id'});
+    }
+
+    const user = await getUser(
+      req.body.telegramId,
+      req.body.username
+    );
+
+    res.json(user);
+
+  }catch(e){
+    console.log('me error:', e.message);
+    res.json({error:'server error'});
+  }
 });
 
 // 點擊
@@ -184,26 +198,26 @@ app.get('/blackhole', async (req,res)=>{
 // 綁定
 app.post('/bind', async (req,res)=>{
   try{
-    const user = await getUser(req.body.telegramId);
+    const { telegramId, wallet } = req.body;
 
-    if(!ethers.isAddress(req.body.wallet))
-      return res.json({msg:'❌ 地址錯誤'});
-
-    const old = user.wallet;
-
-    user.wallet = req.body.wallet;
-    await user.save();
-
-    if(old){
-      return res.json({
-        msg:`已綁定錢包:\n${old}\n\n🔄 已更新為:\n${user.wallet}`
-      });
+    if(!telegramId || !wallet){
+      return res.json({msg:'❌ 資料錯誤'});
     }
 
-    res.json({msg:`✅ 綁定成功\n${user.wallet}`});
+    if(!ethers.isAddress(wallet)){
+      return res.json({msg:'❌ 地址錯誤'});
+    }
 
-  }catch{
-    res.json({msg:'error'});
+    const user = await getUser(telegramId);
+
+    user.wallet = wallet;
+    await user.save();
+
+    res.json({msg:`✅ 已綁定:\n${wallet}`});
+
+  }catch(e){
+    console.log('bind api error:', e.message);
+    res.json({msg:'❌ 綁定失敗'});
   }
 });
 
@@ -344,69 +358,57 @@ bot.hears('🌌 黑洞總量', async ctx=>{
 
 bot.hears('🔗 綁定錢包', async ctx=>{
   try{
-    const {data} = await axios.post(`http://localhost:${PORT}/me`,{
+    const res = await axios.post(`${API}/me`,{
       telegramId: ctx.from.id,
       username: ctx.from.username
     });
 
-    let tokenAmount = 0;
-
-    // 👉 有錢包才查 token
-    if(data.wallet){
-      try{
-        const res = await axios.get(`http://localhost:${PORT}/walletBalance`,{
-          params:{ wallet: data.wallet }
-        });
-        tokenAmount = res.data.balance;
-      }catch(e){
-        console.log('walletBalance error:', e.message);
-      }
-    }
+    const user = res.data;
 
     // 👉 開啟輸入模式
     waitWallet[ctx.from.id] = true;
 
-    if(data.wallet){
+    // 👉 已綁定
+    if(user.wallet){
       return ctx.reply(
 `已綁定錢包:
-${data.wallet}
-
-TOKEN_ADDRESS數量:
-${tokenAmount}
+${user.wallet}
 
 輸入新地址:`
       );
     }
 
+    // 👉 未綁定
     ctx.reply('請輸入錢包地址:');
 
   }catch(e){
     console.log('bind btn error:', e.message);
-    ctx.reply('❌ 系統錯誤');
+    ctx.reply('❌ 系統錯誤（API連線失敗）');
   }
 });
 bot.on('text', async ctx=>{
   const text = ctx.message.text.trim();
 
-  if(waitWallet[ctx.from.id]){
-    if(!text.startsWith('0x') || text.length < 42){
-      return ctx.reply('❌ 地址格式錯誤');
-    }
+  // 👉 只處理綁定狀態
+  if(!waitWallet[ctx.from.id]) return;
 
-    try{
-      const {data} = await axios.post(`http://localhost:${PORT}/bind`,{
-        telegramId: ctx.from.id,
-        wallet: text
-      });
+  if(!text.startsWith('0x') || text.length !== 42){
+    return ctx.reply('❌ 地址格式錯誤');
+  }
 
-      delete waitWallet[ctx.from.id];
+  try{
+    const res = await axios.post(`${API}/bind`,{
+      telegramId: ctx.from.id,
+      wallet: text
+    });
 
-      return ctx.reply(data.msg);
+    delete waitWallet[ctx.from.id];
 
-    }catch(e){
-      console.log('bind error:', e.message);
-      return ctx.reply('❌ 綁定失敗');
-    }
+    ctx.reply(res.data.msg);
+
+  }catch(e){
+    console.log('bind error:', e.message);
+    ctx.reply('❌ 綁定失敗');
   }
 });
 
