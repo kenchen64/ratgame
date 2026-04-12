@@ -90,14 +90,22 @@ app.post('/steal', async (req,res)=>{
   try{
     const user = await getUser(req.body.telegramId);
 
-    const target = await User.findOne({telegramId:{$ne:user.telegramId}});
+    // 👉 抓所有其他玩家
+    const players = await User.find({
+      telegramId: { $ne: user.telegramId },
+      balance: { $gt: 0 }
+    });
 
-    if(!target) return res.json({msg:'❌ 無玩家'});
+    if(players.length === 0)
+      return res.json({msg:'❌ 沒有可偷的玩家'});
 
-    if(Date.now()<target.shieldUntil)
-      return res.json({msg:'🛡️ 對方有盾'});
+    // 👉 隨機一個
+    const target = players[Math.floor(Math.random()*players.length)];
 
-    const amount = Math.min(10,target.balance);
+    if(Date.now() < target.shieldUntil)
+      return res.json({msg:`🛡️ @${target.username} 有盾`});
+
+    const amount = Math.max(1, Math.floor(target.balance * 0.2));
 
     target.balance -= amount;
     user.balance += amount;
@@ -106,7 +114,10 @@ app.post('/steal', async (req,res)=>{
     await target.save();
     await user.save();
 
-    res.json({msg:`🧀 偷到 ${amount}`});
+    res.json({
+      msg:`🐭 偷 @${target.username} 成功\n+${amount}`
+    });
+
   }catch{
     res.json({msg:'error'});
   }
@@ -138,12 +149,18 @@ app.post('/shield', async (req,res)=>{
 // 黑洞
 app.get('/blackhole', async (req,res)=>{
   try{
-    const raw = await contract.balanceOf(DEAD);
-    const dec = await contract.decimals();
+    const [raw, dec] = await Promise.all([
+      contract.balanceOf(DEAD),
+      contract.decimals()
+    ]);
 
-    res.json({total:Number(raw)/(10**dec)});
-  }catch{
-    res.json({total:0});
+    const total = Number(ethers.formatUnits(raw, dec));
+
+    res.json({total});
+
+  }catch(e){
+    console.log('blackhole error:', e.message);
+    res.json({total:'讀取失敗'});
   }
 });
 
@@ -155,10 +172,19 @@ app.post('/bind', async (req,res)=>{
     if(!ethers.isAddress(req.body.wallet))
       return res.json({msg:'❌ 地址錯誤'});
 
+    const old = user.wallet;
+
     user.wallet = req.body.wallet;
     await user.save();
 
-    res.json({msg:`已綁定: ${user.wallet}`});
+    if(old){
+      return res.json({
+        msg:`已綁定錢包:\n${old}\n\n🔄 已更新為:\n${user.wallet}`
+      });
+    }
+
+    res.json({msg:`✅ 綁定成功\n${user.wallet}`});
+
   }catch{
     res.json({msg:'error'});
   }
@@ -170,7 +196,7 @@ app.post('/withdraw', async (req,res)=>{
     const user = await getUser(req.body.telegramId);
 
     if(!user.wallet)
-      return res.json({msg:'❌ 未綁定'});
+      return res.json({msg:'❌ 未綁定錢包'});
 
     if(user.balance < 100)
       return res.json({msg:'❌ 最低100'});
@@ -183,17 +209,33 @@ app.post('/withdraw', async (req,res)=>{
     user.balance = 0;
     await user.save();
 
-    res.json({msg:`成功\n${tx.hash}`});
-  }catch{
-    res.json({msg:'❌ 失敗'});
+    res.json({msg:`✅ 提領成功\n${tx.hash}`});
+
+  }catch(e){
+    console.log('withdraw error:', e.message);
+    res.json({msg:`❌ 提領失敗\n${e.message}`});
   }
 });
 
 // 排行榜
 app.get('/rank', async (req,res)=>{
-  const topClick = await User.find().sort({balance:-1}).limit(5);
-  const topSteal = await User.find().sort({steal:-1}).limit(5);
-  res.json({topClick, topSteal});
+  try{
+    const topClick = await User.find({balance:{$gt:0}})
+      .sort({balance:-1})
+      .limit(5);
+
+    const topSteal = await User.find({steal:{$gt:0}})
+      .sort({steal:-1})
+      .limit(5);
+
+    res.json({
+      topClick: topClick || [],
+      topSteal: topSteal || []
+    });
+
+  }catch(e){
+    res.json({topClick:[], topSteal:[]});
+  }
 });
 
 // ===== Bot =====
@@ -246,25 +288,37 @@ bot.hears('🌌 黑洞總量', async ctx=>{
   ctx.reply(`🌌 ${data.total}`);
 });
 
-bot.hears('🔗 綁定錢包', ctx=>{
-  ctx.reply('輸入地址:');
-});
-
-bot.on('text', async ctx=>{
-  if(ctx.message.text.startsWith('0x')){
-    const {data} = await axios.post(`http://localhost:${PORT}/bind`,{
-      telegramId:ctx.from.id,
-      wallet:ctx.message.text
+bot.hears('🔗 綁定錢包', async ctx=>{
+  try{
+    const {data} = await axios.post(`http://localhost:${PORT}/me`,{
+      telegramId: ctx.from.id,
+      username: ctx.from.username
     });
-    ctx.reply(data.msg);
+
+    if(data.wallet){
+      return ctx.reply(
+        `已綁定錢包:\n${data.wallet}\n\n請輸入新地址:`
+      );
+    }
+
+    ctx.reply('請輸入錢包地址:');
+
+  }catch{
+    ctx.reply('❌ 錯誤');
   }
 });
 
 bot.hears('💸 提領', async ctx=>{
-  const {data} = await axios.post(`http://localhost:${PORT}/withdraw`,{
-    telegramId:ctx.from.id
-  });
-  ctx.reply(data.msg);
+  try{
+    const {data} = await axios.post(`http://localhost:${PORT}/withdraw`,{
+      telegramId:ctx.from.id
+    });
+
+    ctx.reply(data.msg);
+
+  }catch(e){
+    ctx.reply('❌ 提領錯誤');
+  }
 });
 
 bot.hears('🏆 排行榜', async ctx=>{
