@@ -58,6 +58,42 @@ async function getUser(id, username='user'){
   return u;
 }
 
+// 防腳本 AI（行為偵測升級）
+function antiBotAI(user){
+  const now = Date.now();
+
+  // 初始化
+  if(!user.clickHistory){
+    user.clickHistory = [];
+  }
+
+  // 記錄最近點擊
+  user.clickHistory.push(now);
+
+  // 保留最近10筆
+  if(user.clickHistory.length > 10){
+    user.clickHistory.shift();
+  }
+
+  // 👉 計算平均間隔
+  if(user.clickHistory.length >= 5){
+    let intervals = [];
+    for(let i=1;i<user.clickHistory.length;i++){
+      intervals.push(user.clickHistory[i] - user.clickHistory[i-1]);
+    }
+
+    const avg = intervals.reduce((a,b)=>a+b,0)/intervals.length;
+
+    // 👉 太穩定 = 機器人
+    if(avg < 400){
+      user.banned = true;
+      return true;
+    }
+  }
+
+  return false;
+}
+
 // ===== API =====
 
 // 取得自己（前端用）
@@ -75,6 +111,10 @@ app.post('/click', async (req,res)=>{
   return res.json({
     msg:'⏳ 點擊過快',
     balance:user.balance
+    if(antiBotAI(user)){
+  await user.save();
+  return res.json({msg:'🤖 偵測到腳本，已封鎖'});
+}
   });
 }
 
@@ -138,7 +178,7 @@ app.post('/steal', async (req,res)=>{
     await user.save();
 
     res.json({
-      msg:`🐭 偷 ${target.username}\n+${amount}`
+      msg:`🐭 成功偷到 ${target.username}\n+${amount} 🧀`
     });
 
   }catch(e){
@@ -264,14 +304,18 @@ app.get('/rank', async (req,res)=>{
 // 查錢包 TOKEN 數量
 app.get('/walletBalance', async (req,res)=>{
   try{
+    if(!req.query.wallet)
+      return res.json({balance:0});
+
     const raw = await contract.balanceOf(req.query.wallet);
     const dec = await contract.decimals();
 
-    res.json({
-      balance: Number(ethers.formatUnits(raw, dec))
-    });
+    const balance = Number(ethers.formatUnits(raw, dec));
 
-  }catch{
+    res.json({balance});
+
+  }catch(e){
+    console.log('walletBalance error:', e.message);
     res.json({balance:0});
   }
 });
@@ -315,14 +359,17 @@ bot.hears('⚔️ 偷起司', ctx=>{
 });
 bot.command('steal', async ctx=>{
   try{
-    const input = ctx.message.text.split(' ')[1];
+    await ctx.reply('🐭 潛入中...');
 
-    const {data} = await axios.post(`http://localhost:${PORT}/steal`,{
-      telegramId: ctx.from.id,
-      target: input || null
-    });
+    setTimeout(async ()=>{
+      const {data} = await axios.post(`http://localhost:${PORT}/steal`,{
+        telegramId: ctx.from.id,
+        target: ctx.message.text.split(' ')[1] || null
+      });
 
-    ctx.reply(data.msg);
+      ctx.reply(data.msg);
+
+    }, 1500);
 
   }catch{
     ctx.reply('❌ 錯誤');
@@ -347,26 +394,41 @@ bot.hears('🔗 綁定錢包', async ctx=>{
       telegramId: ctx.from.id,
       username: ctx.from.username
     });
+
     let tokenAmount = 0;
 
+    // 👉 有錢包才查 token
     if(data.wallet){
       try{
         const res = await axios.get(`http://localhost:${PORT}/walletBalance`,{
           params:{ wallet: data.wallet }
         });
         tokenAmount = res.data.balance;
-      }catch{}
+      }catch(e){
+        console.log('walletBalance error:', e.message);
+      }
     }
-    waitWallet[ctx.from.id] = true;
-    if(data.wallet){
-      return ctx.reply(`已綁定錢包:${data.wallet}
-TOKEN_ADDRESS數量:${tokenAmount}
 
-請輸入新地址:`);
+    // 👉 開啟輸入模式
+    waitWallet[ctx.from.id] = true;
+
+    if(data.wallet){
+      return ctx.reply(
+`已綁定錢包:
+${data.wallet}
+
+TOKEN_ADDRESS數量:
+${tokenAmount}
+
+輸入新地址:`
+      );
     }
+
     ctx.reply('請輸入錢包地址:');
-  }catch{
-    ctx.reply('❌ 錯誤');
+
+  }catch(e){
+    console.log('bind btn error:', e.message);
+    ctx.reply('❌ 系統錯誤');
   }
 });
 
