@@ -56,6 +56,38 @@ async function getUser(id, username='user'){
   return u;
 }
 
+// ===== API =====
+
+// 取得自己（前端用）
+app.post('/me', async (req,res)=>{
+  const user = await getUser(req.body.telegramId, req.body.username);
+  res.json(user);
+});
+
+// 點擊
+app.post('/click', async (req,res)=>{
+  try{
+    const user = await getUser(req.body.telegramId, req.body.username);
+
+    if(Date.now()-user.lastClick < 3000){
+  return res.json({
+    msg:'⏳ 點擊過快',
+    balance:user.balance
+}
+  });
+}
+
+    user.lastClick = Date.now();
+    user.balance++;
+
+    await user.save();
+
+    res.json(user);
+  }catch(e){
+    res.json({msg:'error'});
+  }
+
+});
 // 防腳本 AI（行為偵測升級）
 function antiBotAI(user){
   const now = Date.now();
@@ -91,39 +123,10 @@ function antiBotAI(user){
 
   return false;
 }
-
-// ===== API =====
-
-// 取得自己（前端用）
-app.post('/me', async (req,res)=>{
-  const user = await getUser(req.body.telegramId, req.body.username);
-  res.json(user);
-});
-
-// 點擊
-app.post('/click', async (req,res)=>{
-  try{
-    const user = await getUser(req.body.telegramId, req.body.username);
-
-    if(Date.now()-user.lastClick < 3000){
-  return res.json({
-    msg:'⏳ 點擊過快',
-    balance:user.balance
-}
-  });
-}
-
-    user.lastClick = Date.now();
-    user.balance++;
-      if(antiBotAI(user)){
-    await user.save();
+if(antiBotAI(user)){
+  await user.save();
   return res.json({msg:'🤖 偵測到腳本，已封鎖'});
-    res.json(user);
-  }catch(e){
-    res.json({msg:'error'});
-  }
-
-});
+}
 
 // 偷取 隨機或指定
 app.post('/steal', async (req,res)=>{
