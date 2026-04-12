@@ -109,22 +109,20 @@ app.post('/click', async (req,res)=>{
   return res.json({
     msg:'⏳ 點擊過快',
     balance:user.balance
-    if(antiBotAI(user)){
-  await user.save();
-  return res.json({msg:'🤖 偵測到腳本，已封鎖'});
 }
   });
 }
 
     user.lastClick = Date.now();
     user.balance++;
-
+      if(antiBotAI(user)){
     await user.save();
-
+  return res.json({msg:'🤖 偵測到腳本，已封鎖'});
     res.json(user);
   }catch(e){
     res.json({msg:'error'});
   }
+
 });
 
 // 偷取 隨機或指定
