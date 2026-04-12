@@ -387,10 +387,13 @@ ${user.wallet}
   }
 });
 const waitWallet = {};
-bot.on('text', async ctx=>{
+bot.on('text', async (ctx, next) => {
   const text = ctx.message.text.trim();
 
-if(!waitWallet[ctx.from.id]) return;
+  // 👉 不在綁定模式 → 交給其他 handler（關鍵）
+  if (!waitWallet[ctx.from.id]) {
+    return next();
+  }
   {
     if(!text.startsWith('0x') || text.length < 42){
       return ctx.reply('❌ 地址格式錯誤');
