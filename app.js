@@ -78,7 +78,7 @@ app.post('/click', async (req,res)=>{
 
     user.lastClick = Date.now();
     user.balance++;
-
+  await user.save();
     res.json(user);
   }catch(e){
     res.json({msg:'error'});
@@ -121,7 +121,6 @@ function antiBotAI(user){
   return false;
 }
 if(antiBotAI(user)){
-  await user.save();
   return res.json({msg:'🤖 偵測到腳本，已封鎖'});
 }
 
