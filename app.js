@@ -390,26 +390,25 @@ ${user.wallet}
 bot.on('text', async ctx=>{
   const text = ctx.message.text.trim();
 
-  // 👉 只處理綁定狀態
-  if(!waitWallet[ctx.from.id]) return;
+  if(waitWallet[ctx.from.id]){
+    if(!text.startsWith('0x') || text.length < 42){
+      return ctx.reply('❌ 地址格式錯誤');
+    }
 
-  if(!text.startsWith('0x') || text.length !== 42){
-    return ctx.reply('❌ 地址格式錯誤');
-  }
+    try{
+      const {data} = await axios.post(`http://localhost:${PORT}/bind`,{
+        telegramId: ctx.from.id,
+        wallet: text
+      });
 
-  try{
-    const res = await axios.post(`http://localhost:${PORT}/bind`,{
-      telegramId: ctx.from.id,
-      wallet: text
-    });
+      delete waitWallet[ctx.from.id];
 
-    delete waitWallet[ctx.from.id];
+      return ctx.reply(data.msg);
 
-    ctx.reply(res.data.msg);
-
-  }catch(e){
-    console.log('bind error:', e.message);
-    ctx.reply('❌ 綁定失敗');
+    }catch(e){
+      console.log('bind error:', e.message);
+      return ctx.reply('❌ 綁定失敗');
+    }
   }
 });
 
