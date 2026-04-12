@@ -56,41 +56,6 @@ async function getUser(id, username='user'){
   return u;
 }
 
-  // 防腳本 AI（行為偵測升級）
-function antiBotAI(user){
-  const now = Date.now();
-
-  // 初始化
-  if(!user.clickHistory){
-    user.clickHistory = [];
-  }
-
-  // 記錄最近點擊
-  user.clickHistory.push(now);
-
-  // 保留最近10筆
-  if(user.clickHistory.length > 10){
-    user.clickHistory.shift();
-  }
-
-  // 👉 計算平均間隔
-  if(user.clickHistory.length >= 5){
-    let intervals = [];
-    for(let i=1;i<user.clickHistory.length;i++){
-      intervals.push(user.clickHistory[i] - user.clickHistory[i-1]);
-    }
-
-    const avg = intervals.reduce((a,b)=>a+b,0)/intervals.length;
-
-    // 👉 太穩定 = 機器人
-    if(avg < 400){
-      user.banned = true;
-      return true;
-    }
-  }
-
-  return false;
-}
 // ===== API =====
 
 // 取得自己（前端用）
@@ -111,14 +76,11 @@ app.post('/click', async (req,res)=>{
 }
     user.lastClick = Date.now();
     user.balance++;
-    if(antiBotAI(user)){
   await user.save();
-    return res.json({msg:'🤖 偵測到腳本，已封鎖'});
     res.json(user);
   }catch(e){
     res.json({msg:'error'});
   }
-}
 });
 
 // 偷取 隨機或指定
