@@ -4,10 +4,8 @@ const mongoose = require('mongoose');
 const axios = require('axios');
 const { Telegraf, Markup } = require('telegraf');
 const { ethers } = require('ethers');
-
 const app = express();
 app.use(express.json());
-
 const PORT = process.env.PORT || 10000;
 
 // ===== Mongo =====
