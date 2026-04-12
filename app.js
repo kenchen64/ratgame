@@ -125,13 +125,16 @@ app.get('/blackhole', async (req,res)=>{
 app.post('/bind', async (req,res)=>{
   const user = await getUser(req.body.telegramId);
 
+  if(user.wallet)
+    return res.json({msg:`已綁定: ${user.wallet}`});
+
   if(!ethers.isAddress(req.body.wallet))
     return res.json({msg:'❌ 地址錯誤'});
 
   user.wallet = req.body.wallet;
   await user.save();
 
-  res.json({msg:`已綁定: ${user.wallet}`});
+  res.json({msg:'✅ 綁定成功'});
 });
 
 // 提領
