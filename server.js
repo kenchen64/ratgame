@@ -30,7 +30,14 @@ const contract = new ethers.Contract(
 const DEAD = "0x000000000000000000000000000000000000dead";
 
 // ===== DB =====
-mongoose.connect(process.env.MONGO_URI);
+mongoose.connect(process.env.MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+  ssl: true,
+  tls: true,
+})
+.then(()=>console.log('✅ MongoDB 連線成功'))
+.catch(err=>console.log('❌ Mongo錯誤:', err));
 
 const User = mongoose.model('User', {
   telegramId: String,
