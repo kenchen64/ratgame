@@ -120,6 +120,7 @@ function antiBotAI(user){
   return false;
 }
 if(antiBotAI(user)){
+  await user.save();
   return res.json({msg:'🤖 偵測到腳本，已封鎖'});
 }
 });
