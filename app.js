@@ -386,7 +386,7 @@ ${user.wallet}
     ctx.reply('❌ 系統錯誤（API連線失敗）');
   }
 });
-
+const waitWallet = {};
 bot.on('text', async ctx=>{
   const text = ctx.message.text.trim();
 
