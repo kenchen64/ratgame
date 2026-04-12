@@ -84,7 +84,6 @@ app.post('/click', async (req,res)=>{
     res.json({msg:'error'});
   }
 
-});
 // 防腳本 AI（行為偵測升級）
 function antiBotAI(user){
   const now = Date.now();
@@ -123,6 +122,7 @@ function antiBotAI(user){
 if(antiBotAI(user)){
   return res.json({msg:'🤖 偵測到腳本，已封鎖'});
 }
+});
 
 // 偷取 隨機或指定
 app.post('/steal', async (req,res)=>{
