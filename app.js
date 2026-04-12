@@ -118,7 +118,7 @@ app.post('/click', async (req,res)=>{
   }catch(e){
     res.json({msg:'error'});
   }
-
+}
 });
 
 // 偷取 隨機或指定
