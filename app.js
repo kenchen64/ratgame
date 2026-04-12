@@ -386,11 +386,11 @@ ${user.wallet}
     ctx.reply('❌ 系統錯誤（API連線失敗）');
   }
 });
+  const waitWallet = {};
 bot.on('text', async ctx=>{
   const text = ctx.message.text.trim();
 
   // 👉 只處理綁定狀態
-  const waitWallet = {};
   if(!waitWallet[ctx.from.id]) return;
 
   if(!text.startsWith('0x') || text.length !== 42){
