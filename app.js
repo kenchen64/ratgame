@@ -347,7 +347,6 @@ bot.hears('🔗 綁定錢包', async ctx=>{
       telegramId: ctx.from.id,
       username: ctx.from.username
     });
-
     let tokenAmount = 0;
 
     if(data.wallet){
@@ -358,49 +357,16 @@ bot.hears('🔗 綁定錢包', async ctx=>{
         tokenAmount = res.data.balance;
       }catch{}
     }
-
     waitWallet[ctx.from.id] = true;
-
     if(data.wallet){
-      return ctx.reply(
-`已綁定錢包:
-${data.wallet}
+      return ctx.reply(`已綁定錢包:${data.wallet}
+TOKEN_ADDRESS數量:${tokenAmount}
 
-TOKEN_ADDRESS數量:
-${tokenAmount}
-
-請輸入新地址:`
-      );
+請輸入新地址:`);
     }
-
     ctx.reply('請輸入錢包地址:');
-
   }catch{
     ctx.reply('❌ 錯誤');
-  }
-});
-bot.on('text', async ctx=>{
-  const text = ctx.message.text;
-
-  // 👉 綁定錢包模式
-  if(waitWallet[ctx.from.id]){
-    if(!text.startsWith('0x')){
-      return ctx.reply('❌ 請輸入正確地址');
-    }
-
-    try{
-      const {data} = await axios.post(`http://localhost:${PORT}/bind`,{
-        telegramId:ctx.from.id,
-        wallet:text
-      });
-
-      delete waitWallet[ctx.from.id];
-
-      return ctx.reply(data.msg);
-
-    }catch{
-      return ctx.reply('❌ 綁定失敗');
-    }
   }
 });
 
