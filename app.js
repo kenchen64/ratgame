@@ -71,7 +71,7 @@ app.post('/click', async (req,res)=>{
   try{
     const user = await getUser(req.body.telegramId, req.body.username);
 
-    if(Date.now()-user.lastClick < 1000)
+    if(Date.now()-user.lastClick < 3000)
       return res.json({msg:'⏳ 冷卻', balance:user.balance});
 
     user.lastClick = Date.now();
@@ -206,7 +206,14 @@ const menu = Markup.keyboard([
 ['💸 提領','🏆 排行榜']
 ]).resize();
 
-bot.start(ctx=>ctx.reply('🐭 Rat Game',menu));
+// ===== 開始 =====
+bot.start(ctx=>{
+  ctx.reply('🐭 遊戲開始', menu);
+});
+
+bot.hears('🎮 開始遊戲', ctx=>{
+  ctx.reply('🎮 已開始', menu);
+});
 
 bot.hears('🖱 點擊赚起司', async ctx=>{
   try{
@@ -214,7 +221,7 @@ bot.hears('🖱 點擊赚起司', async ctx=>{
       telegramId:ctx.from.id,
       username:ctx.from.username
     });
-    ctx.reply(`💰 ${data.balance}`);
+    ctx.reply(`🆔Telegram: ${ctx.from.id}\n👤用戶名: ${ctx.from.username}\n🧀餘額: ${data.balance}`);
   }catch{
     ctx.reply('❌ 錯誤');
   }
