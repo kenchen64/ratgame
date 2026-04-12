@@ -73,7 +73,6 @@ app.post('/click', async (req,res)=>{
   return res.json({
     msg:'⏳ 點擊過快',
     balance:user.balance
-}
   });
 }
 
