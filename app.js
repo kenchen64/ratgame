@@ -191,7 +191,7 @@ bot.hears('🖱 點擊赚起司', async ctx=>{
   });
 
   const data = await res.json();
-  ctx.reply(`💰 ${data.balance}`);
+  ctx.reply(`🆔 ${ctx.from.id}\n💰 ${data.balance}`);
 });
 
 bot.hears('⚔️ 偷起司', async ctx=>{
