@@ -103,4 +103,5 @@ app.use(bot.webhookCallback('/bot'));
 
 bot.telegram.setWebhook(`${process.env.WEBHOOK_URL}/bot`);
 
-app.listen(3001, ()=>console.log('🤖 Bot Webhook OK'));
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, ()=>console.log('🤖 Bot Webhook OK'));
