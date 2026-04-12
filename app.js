@@ -111,16 +111,14 @@ app.post('/click', async (req,res)=>{
 }
     user.lastClick = Date.now();
     user.balance++;
+    if(antiBotAI(user)){
   await user.save();
+    return res.json({msg:'🤖 偵測到腳本，已封鎖'});
     res.json(user);
   }catch(e){
     res.json({msg:'error'});
   }
 
-if(antiBotAI(user)){
-  await user.save();
-  return res.json({msg:'🤖 偵測到腳本，已封鎖'});
-}
 });
 
 // 偷取 隨機或指定
