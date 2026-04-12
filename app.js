@@ -379,6 +379,30 @@ ${tokenAmount}
     ctx.reply('❌ 錯誤');
   }
 });
+bot.on('text', async ctx=>{
+  const text = ctx.message.text;
+
+  // 👉 綁定錢包模式
+  if(waitWallet[ctx.from.id]){
+    if(!text.startsWith('0x')){
+      return ctx.reply('❌ 請輸入正確地址');
+    }
+
+    try{
+      const {data} = await axios.post(`http://localhost:${PORT}/bind`,{
+        telegramId:ctx.from.id,
+        wallet:text
+      });
+
+      delete waitWallet[ctx.from.id];
+
+      return ctx.reply(data.msg);
+
+    }catch{
+      return ctx.reply('❌ 綁定失敗');
+    }
+  }
+});
 
 bot.hears('💸 提領', async ctx=>{
   try{
