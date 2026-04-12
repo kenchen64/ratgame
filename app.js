@@ -385,6 +385,30 @@ ${tokenAmount}
     ctx.reply('❌ 系統錯誤');
   }
 });
+bot.on('text', async ctx=>{
+  const text = ctx.message.text.trim();
+
+  if(waitWallet[ctx.from.id]){
+    if(!text.startsWith('0x') || text.length < 42){
+      return ctx.reply('❌ 地址格式錯誤');
+    }
+
+    try{
+      const {data} = await axios.post(`http://localhost:${PORT}/bind`,{
+        telegramId: ctx.from.id,
+        wallet: text
+      });
+
+      delete waitWallet[ctx.from.id];
+
+      return ctx.reply(data.msg);
+
+    }catch(e){
+      console.log('bind error:', e.message);
+      return ctx.reply('❌ 綁定失敗');
+    }
+  }
+});
 
 bot.hears('💸 提領', async ctx=>{
   try{
