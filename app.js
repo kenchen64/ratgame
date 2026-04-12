@@ -60,7 +60,7 @@ app.post('/click', async (req,res)=>{
 
   if(user.banned) return res.json({msg:'🚫 封鎖'});
 
-  if(Date.now()-user.lastClick < 1000)
+  if(Date.now()-user.lastClick < 3000)
     return res.json({msg:'⏳ 冷卻', balance:user.balance});
 
   user.lastClick = Date.now();
