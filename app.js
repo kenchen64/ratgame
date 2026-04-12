@@ -198,7 +198,7 @@ bot.hears('🖱 點擊赚起司', async ctx=>{
   });
 
   const data = await res.json();
-  ctx.reply(`🆔 ${ctx.from.id}\n👤 ${ctx.from.username}\n💰 ${data.balance}`);
+  ctx.reply(`🆔Telegram: ${ctx.from.id}\n👤用戶名: ${ctx.from.username}\n🧀餘額: ${data.balance}`);
 });
 
 bot.hears('⚔️ 偷起司', async ctx=>{
