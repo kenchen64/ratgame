@@ -5,6 +5,7 @@ const express = require('express');
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 const app = express();
+app.use(express.json());
 
 const API = process.env.API_URL;
 
