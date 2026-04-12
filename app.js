@@ -125,14 +125,14 @@ app.get('/blackhole', async (req,res)=>{
 app.post('/bind', async (req,res)=>{
   const user = await getUser(req.body.telegramId);
 
-  if(user.wallet)
-    return res.json({msg:`已綁定: ${user.wallet}`});
-
   if(!ethers.isAddress(req.body.wallet))
     return res.json({msg:'❌ 地址錯誤'});
 
   user.wallet = req.body.wallet;
   await user.save();
+
+  if(user.wallet)
+    return res.json({msg:`已綁定: ${user.wallet}`});
 
   res.json({msg:'✅ 綁定成功'});
 });
@@ -234,7 +234,13 @@ bot.hears('🌌 黑洞總量', async ctx=>{
 });
 
 bot.hears('🔗 綁定錢包', ctx=>{
-  ctx.reply('輸入地址:');
+  ctx.reply(
+    res.data.wallet
+      ? `目前綁定:\n${res.data.wallet}\n\n輸入新地址:`
+      : '輸入錢包地址:'
+  );
+
+  waitingWallet[ctx.from.id] = true;
 });
 
 bot.on('text', async ctx=>{
