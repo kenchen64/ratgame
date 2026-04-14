@@ -415,7 +415,6 @@ ${user.wallet}
   }
 });
 const waitWallet = {};
-const waitShieldConfirm = {};
 
 bot.on('text', async (ctx, next) => {
   const text = ctx.message.text.trim();
