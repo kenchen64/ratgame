@@ -177,43 +177,21 @@ app.post('/shield', async (req,res)=>{
   }
 });
 
-// 黑洞
 // ===== 黑洞總量（鏈上）=====
-app.get('/blackhole', async (req, res) => {
-  try {
-    const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
-
-    const token = new ethers.Contract(
-      process.env.TOKEN_ADDRESS,
-      [
-        "function balanceOf(address) view returns (uint256)",
-        "function decimals() view returns (uint8)"
-      ],
-      provider
-    );
-
-    const dead = "0x000000000000000000000000000000000000dEaD";
-
-    const [raw, decimals] = await Promise.all([
-      token.balanceOf(dead),
-      token.decimals()
+app.get('/blackhole', async (req,res)=>{
+  try{
+    const [raw, dec] = await Promise.all([
+      contract.balanceOf(DEAD),
+      contract.decimals()
     ]);
 
-    const amount = ethers.formatUnits(raw, decimals);
+    const total = Number(ethers.formatUnits(raw, dec));
 
-    return res.json({
-      success: true,
-      amount
-    });
+    res.json({total});
 
-  } catch (err) {
-    console.error("blackhole error:", err.message);
-
-    return res.json({
-      success: false,
-      amount: "0",
-      error: err.message
-    });
+  }catch(e){
+    console.log('blackhole error:', e.message);
+    res.json({total:'讀取失敗'});
   }
 });
 
