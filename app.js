@@ -460,7 +460,7 @@ if (waitShieldConfirm[ctx.from.id]) {
     '🌌 黑洞總量',
     '🔗 綁定錢包',
     '💸 提領',
-    '🏆 排行榜'
+    '🏆 排行榜',
   ];
 
   if (ignoreTexts.includes(text)) {
