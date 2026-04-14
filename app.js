@@ -269,25 +269,6 @@ app.get('/rank', async (req,res)=>{
   }
 });
 
-// 查錢包 TOKEN 數量
-app.get('/walletBalance', async (req,res)=>{
-  try{
-    if(!req.query.wallet)
-      return res.json({balance:0});
-
-    const raw = await contract.balanceOf(req.query.wallet);
-    const dec = await contract.decimals();
-
-    const balance = Number(ethers.formatUnits(raw, dec));
-
-    res.json({balance});
-
-  }catch(e){
-    console.log('walletBalance error:', e.message);
-    res.json({balance:0});
-  }
-});
-
 // ===== Bot =====
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
@@ -416,7 +397,7 @@ bot.on('text', async (ctx, next) => {
   }
 
   try {
-    const res = await axios.post(`${API}/bind`, {
+    const res = await axios.post(`http://localhost:${PORT}/bind`, {
       telegramId: ctx.from.id,
       wallet: text
     });
