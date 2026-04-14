@@ -415,7 +415,7 @@ ${user.wallet}
   }
 });
 const waitWallet = {};
-
+const waitShieldConfirm = {};
 
 bot.on('text', async (ctx, next) => {
   const text = ctx.message.text.trim();
@@ -448,6 +448,9 @@ if (waitShieldConfirm[ctx.from.id]) {
 }
   // 👉 不在綁定模式 → 交給其他 handler（關鍵）
   if (!waitWallet[ctx.from.id]) {
+    return next();
+  }
+    if (!waitShieldConfirm[ctx.from.id]) {
     return next();
   }
   
