@@ -394,25 +394,40 @@ bot.on('text', async (ctx, next) => {
   if (!waitWallet[ctx.from.id]) {
     return next();
   }
-  {
-    if(!text.startsWith('0x') || text.length < 42){
-      return ctx.reply('❌ 地址格式錯誤');
-    }
+  
+  // 👉 忽略按鈕文字（避免誤判）
+  const ignoreTexts = [
+    '🎮 開始遊戲',
+    '🖱 點擊赚起司',
+    '⚔️ 偷起司',
+    '🛡️ 防護盾',
+    '🌌 黑洞總量',
+    '🔗 綁定錢包',
+    '💸 提領',
+    '🏆 排行榜'
+  ];
 
-    try{
-      const {data} = await axios.post(`http://localhost:${PORT}/bind`,{
-        telegramId: ctx.from.id,
-        wallet: text
-      });
+  if (ignoreTexts.includes(text)) {
+    return next();
+  }
+// 👉 地址檢查
+  if (!text.startsWith('0x') || text.length !== 42) {
+    return ctx.reply('❌ 地址格式錯誤');
+  }
 
-      delete waitWallet[ctx.from.id];
+  try {
+    const res = await axios.post(`${API}/bind`, {
+      telegramId: ctx.from.id,
+      wallet: text
+    });
 
-      return ctx.reply(data.msg);
+    delete waitWallet[ctx.from.id];
 
-    }catch(e){
-      console.log('bind error:', e.message);
-      return ctx.reply('❌ 綁定失敗');
-    }
+    return ctx.reply(res.data.msg);
+
+  } catch (e) {
+    console.log('bind error:', e.message);
+    return ctx.reply('❌ 綁定失敗');
   }
 });
 
