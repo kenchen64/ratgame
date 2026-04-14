@@ -45,8 +45,6 @@ const contract = new ethers.Contract(
   wallet
 );
 
-const DEAD = "0x000000000000000000000000000000000000dead";
-
 // ===== 共用 =====
 async function getUser(id, username='user'){
   let u = await User.findOne({telegramId:id});
@@ -178,20 +176,43 @@ app.post('/shield', async (req,res)=>{
 });
 
 // ===== 黑洞總量（鏈上）=====
-app.get('/blackhole', async (req,res)=>{
-  try{
+// ===== 黑洞總量（修正版）=====
+app.get('/blackhole', async (req, res) => {
+  try {
+    // 👉 每次請求都重新建立 provider & contract（避免連線失效）
+    const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
+
+    const contract = new ethers.Contract(
+      process.env.TOKEN_ADDRESS,
+      [
+        "function balanceOf(address) view returns (uint256)",
+        "function decimals() view returns (uint8)"
+      ],
+      provider
+    );
+
+    const DEAD = "0x000000000000000000000000000000000000dEaD";
+
     const [raw, dec] = await Promise.all([
       contract.balanceOf(DEAD),
       contract.decimals()
     ]);
 
-    const total = Number(ethers.formatUnits(raw, dec));
+    // 👉 避免 Number 溢位（改用字串）
+    const total = ethers.formatUnits(raw, dec);
 
-    res.json({total});
+    return res.json({
+      success: true,
+      total
+    });
 
-  }catch(e){
-    console.log('blackhole error:', e.message);
-    res.json({total:'讀取失敗'});
+  } catch (e) {
+    console.log('blackhole error:', e);
+
+    return res.json({
+      success: false,
+      total: "0"
+    });
   }
 });
 
