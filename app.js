@@ -190,8 +190,8 @@ app.get('/blackhole', async (req, res) => {
       ],
       provider
     );
-
-    const DEAD = "0x000000000000000000000000000000000000dEaD";
+    
+    const DEAD = "0x000000000000000000000000000000000000dead";
 
     const [raw, dec] = await Promise.all([
       contract.balanceOf(DEAD),
