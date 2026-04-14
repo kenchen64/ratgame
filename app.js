@@ -165,9 +165,9 @@ app.post('/shield', async (req, res) => {
 
     const now = Date.now();
 
-    // 👉 核心：時間累加
+    // 👉 時間累加
     if (user.shieldUntil && user.shieldUntil > now) {
-      user.shieldUntil += 60000; // +60秒
+      user.shieldUntil += 60000;
     } else {
       user.shieldUntil = now + 60000;
     }
@@ -355,10 +355,10 @@ bot.command('steal', async ctx=>{
   }
 });
 
-// ===== FSM：防護盾確認 =====
-bot.hears('🛡️ 防護盾', async (ctx) => {
-  clearState(ctx.from.id);
+// ===== 防護盾確認 =====
+const waitShieldConfirm = {};
 
+bot.hears('🛡️ 防護盾', async (ctx) => {
   const { data } = await axios.post(`http://localhost:${PORT}/me`, {
     telegramId: ctx.from.id
   });
@@ -368,7 +368,7 @@ bot.hears('🛡️ 防護盾', async (ctx) => {
     ? Math.floor((data.shieldUntil - now) / 1000)
     : 0;
 
-  setState(ctx.from.id, 'WAIT_SHIELD_CONFIRM');
+  waitShieldConfirm[ctx.from.id] = true;
 
   ctx.reply(
 `🛡️ 防護盾
@@ -415,9 +415,37 @@ ${user.wallet}
   }
 });
 const waitWallet = {};
+
+
 bot.on('text', async (ctx, next) => {
   const text = ctx.message.text.trim();
+// ===== 加在 bot.on('text') 裡（最前面）=====
+if (waitShieldConfirm[ctx.from.id]) {
+  const text = ctx.message.text.trim().toLowerCase();
 
+  if (text === 'n') {
+    delete waitShieldConfirm[ctx.from.id];
+    return ctx.reply('❌ 已取消');
+  }
+
+  if (text !== 'y') {
+    return ctx.reply('請輸入 y 或 n');
+  }
+
+  try {
+    const { data } = await axios.post(`http://localhost:${PORT}/shield`, {
+      telegramId: ctx.from.id
+    });
+
+    delete waitShieldConfirm[ctx.from.id];
+
+    return ctx.reply(data.msg);
+
+  } catch (e) {
+    delete waitShieldConfirm[ctx.from.id];
+    return ctx.reply('❌ 防護盾失敗');
+  }
+}
   // 👉 不在綁定模式 → 交給其他 handler（關鍵）
   if (!waitWallet[ctx.from.id]) {
     return next();
@@ -486,33 +514,6 @@ bot.hears('🏆 排行榜', async ctx=>{
   });
 
   ctx.reply(msg);
-
-// ===== FSM handler 新增（放在 bot.on 裡）=====
-if (state === 'WAIT_SHIELD_CONFIRM') {
-
-  if (text.toLowerCase() === 'n') {
-    clearState(userId);
-    return ctx.reply('❌ 已取消');
-  }
-
-  if (text.toLowerCase() !== 'y') {
-    return ctx.reply('請輸入 y 或 n');
-  }
-
-  try {
-    const { data } = await axios.post(`http://localhost:${PORT}/shield`, {
-      telegramId: userId
-    });
-
-    clearState(userId);
-
-    return ctx.reply(data.msg);
-
-  } catch (e) {
-    clearState(userId);
-    return ctx.reply('❌ 防護盾失敗');
-  }
-}
 });
 
 // ===== Webhook =====
