@@ -153,30 +153,42 @@ app.post('/steal', async (req,res)=>{
 });
 
 // 防護盾（累加）
-app.post('/shield', async (req,res)=>{
-  try{
-    const user = await getUser(req.body.telegramId);
+app.post('/shield', async (req, res) => {
+  try {
+    const user = await User.findOne({ telegramId: req.body.telegramId });
 
-    if(user.balance < 50)
-      return res.json({msg:'❌ 不足50'});
+    if (!user) return res.json({ msg: '❌ 無玩家' });
+
+    if (user.balance < 50) {
+      return res.json({ msg: '❌ 不足50 🧀' });
+    }
+
+    const now = Date.now();
+
+    // 👉 核心：時間累加
+    if (user.shieldUntil && user.shieldUntil > now) {
+      user.shieldUntil += 60000; // +60秒
+    } else {
+      user.shieldUntil = now + 60000;
+    }
 
     user.balance -= 50;
 
-    user.shieldUntil =
-      Math.max(user.shieldUntil, Date.now()) + 60000;
-
     await user.save();
 
+    const remain = Math.floor((user.shieldUntil - now) / 1000);
+
     res.json({
-      msg:`🛡️ 剩餘 ${Math.floor((user.shieldUntil-Date.now())/1000)} 秒`
+      msg: `🛡️ 防護盾啟動！\n剩餘時間: ${remain}s`
     });
-  }catch{
-    res.json({msg:'error'});
+
+  } catch (e) {
+    console.log(e);
+    res.json({ msg: '❌ 錯誤' });
   }
 });
 
 // ===== 黑洞總量（鏈上）=====
-// ===== 黑洞總量（最終修正版🔥）=====
 app.get('/blackhole', async (req, res) => {
   try {
     const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
@@ -343,11 +355,28 @@ bot.command('steal', async ctx=>{
   }
 });
 
-bot.hears('🛡️ 防護盾', async ctx=>{
-  const {data} = await axios.post(`http://localhost:${PORT}/shield`,{
-    telegramId:ctx.from.id
+// ===== FSM：防護盾確認 =====
+bot.hears('🛡️ 防護盾', async (ctx) => {
+  clearState(ctx.from.id);
+
+  const { data } = await axios.post(`http://localhost:${PORT}/me`, {
+    telegramId: ctx.from.id
   });
-  ctx.reply(data.msg);
+
+  const now = Date.now();
+  const remain = data.shieldUntil > now
+    ? Math.floor((data.shieldUntil - now) / 1000)
+    : 0;
+
+  setState(ctx.from.id, 'WAIT_SHIELD_CONFIRM');
+
+  ctx.reply(
+`🛡️ 防護盾
+消耗: 50 🧀
+目前剩餘時間: ${remain}s
+
+是否開啟？(y/n)`
+  );
 });
 
 bot.hears('🌌 黑洞總量', async ctx=>{
@@ -458,6 +487,32 @@ bot.hears('🏆 排行榜', async ctx=>{
 
   ctx.reply(msg);
 });
+// ===== FSM handler 新增（放在 bot.on 裡）=====
+if (state === 'WAIT_SHIELD_CONFIRM') {
+
+  if (text.toLowerCase() === 'n') {
+    clearState(userId);
+    return ctx.reply('❌ 已取消');
+  }
+
+  if (text.toLowerCase() !== 'y') {
+    return ctx.reply('請輸入 y 或 n');
+  }
+
+  try {
+    const { data } = await axios.post(`${API}/shield`, {
+      telegramId: userId
+    });
+
+    clearState(userId);
+
+    return ctx.reply(data.msg);
+
+  } catch (e) {
+    clearState(userId);
+    return ctx.reply('❌ 防護盾失敗');
+  }
+}
 
 // ===== Webhook =====
 app.use(bot.webhookCallback('/bot'));
