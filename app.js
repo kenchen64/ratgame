@@ -176,29 +176,27 @@ app.post('/shield', async (req,res)=>{
 });
 
 // ===== 黑洞總量（鏈上）=====
+// ===== 黑洞總量（最終修正版🔥）=====
 app.get('/blackhole', async (req, res) => {
   try {
-    // 👉 每次請求都重新建立 provider & contract（避免連線失效）
     const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
 
+    // 👉 最小ABI（避免錯誤）
     const contract = new ethers.Contract(
       process.env.TOKEN_ADDRESS,
-      [
-        "function balanceOf(address) view returns (uint256)",
-        "function decimals() view returns (uint8)"
-      ],
+      ["function balanceOf(address) view returns (uint256)"],
       provider
     );
-    
+
+    // ⚠️ 用全小寫（關鍵）
     const DEAD = "0x000000000000000000000000000000000000dead";
 
-    const [raw, dec] = await Promise.all([
-      contract.balanceOf(DEAD),
-      contract.decimals()
-    ]);
+    const raw = await contract.balanceOf(DEAD);
 
-    // 👉 避免 Number 溢位（改用字串）
-    const total = ethers.formatUnits(raw, dec);
+    // 👉 固定18位（BSC常見，避免 decimals() 失敗）
+    const total = ethers.formatUnits(raw, 18);
+
+    console.log("blackhole raw:", raw.toString());
 
     return res.json({
       success: true,
@@ -206,7 +204,7 @@ app.get('/blackhole', async (req, res) => {
     });
 
   } catch (e) {
-    console.log('blackhole error:', e);
+    console.log("blackhole error:", e);
 
     return res.json({
       success: false,
