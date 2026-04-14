@@ -176,7 +176,6 @@ app.post('/shield', async (req,res)=>{
 });
 
 // ===== 黑洞總量（鏈上）=====
-// ===== 黑洞總量（修正版）=====
 app.get('/blackhole', async (req, res) => {
   try {
     // 👉 每次請求都重新建立 provider & contract（避免連線失效）
