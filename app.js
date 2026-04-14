@@ -486,7 +486,7 @@ bot.hears('🏆 排行榜', async ctx=>{
   });
 
   ctx.reply(msg);
-});
+
 // ===== FSM handler 新增（放在 bot.on 裡）=====
 if (state === 'WAIT_SHIELD_CONFIRM') {
 
@@ -500,7 +500,7 @@ if (state === 'WAIT_SHIELD_CONFIRM') {
   }
 
   try {
-    const { data } = await axios.post(`${API}/shield`, {
+    const { data } = await axios.post(`http://localhost:${PORT}/shield`, {
       telegramId: userId
     });
 
@@ -513,6 +513,7 @@ if (state === 'WAIT_SHIELD_CONFIRM') {
     return ctx.reply('❌ 防護盾失敗');
   }
 }
+});
 
 // ===== Webhook =====
 app.use(bot.webhookCallback('/bot'));
