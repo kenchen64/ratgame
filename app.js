@@ -286,6 +286,29 @@ bot.hears('🖱 點擊赚起司', async ctx=>{
   ctx.reply(`🆔Telegram: ${ctx.from.id}\n👤用戶名: ${ctx.from.username}\n🧀餘額: ${data.balance}`);
 });
 
+// ===== 偷起司 =====
+bot.hears('⚔️ 偷起司', ctx=>{
+  ctx.reply('輸入:\n/steal (隨機)\n/steal @username\n/steal id');
+});
+bot.command('steal', async ctx=>{
+  try{
+    await ctx.reply('🐭 潛入中...');
+
+    setTimeout(async ()=>{
+      const {data} = await axios.post(`http://localhost:${PORT}/steal`,{
+        telegramId: ctx.from.id,
+        target: ctx.message.text.split(' ')[1] || null
+      });
+
+      ctx.reply(data.msg);
+
+    }, 1500);
+
+  }catch{
+    ctx.reply('❌ 錯誤');
+  }
+});
+
 // ===== 防護盾 =====
 bot.hears('🛡️ 防護盾', async ctx=>{
   const {data} = await axios.post(`http://localhost:${PORT}/me`,{
@@ -397,11 +420,15 @@ bot.hears('🏆 排行榜', async ctx=>{
 
   const {data} = await axios.get(`http://localhost:${PORT}/rank`);
 
-  let msg='🏆\n';
+  let msg='🏆 點擊榜\n';
   data.topClick.forEach((u,i)=>{
     msg+=`${i+1}. ${u.username} ${u.balance}\n`;
   });
 
+  msg+='\n⚔️ 偷取榜\n';
+  data.topSteal.forEach((u,i)=>{
+    msg+=`${i+1}. ${u.username} ${u.steal}\n`;
+  });
   ctx.reply(msg);
 });
 
