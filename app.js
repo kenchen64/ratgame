@@ -26,7 +26,7 @@ const User = mongoose.models.User || mongoose.model('User',{
   banned:{type:Boolean,default:false},
   withdrawing:{type:Boolean,default:false},
   referrer:String,
-  dailyClaim:{type:Number,default:0}
+  dailyClaim:{type:Number,default:0},
 });
 
 // ===== Web3（雙RPC防掉線🔥）=====
@@ -49,17 +49,6 @@ async function getUser(id, username='user'){
     u = await User.create({telegramId:id, username});
   }
   return u;
-}
-//每日任務重置
-function resetDailyTask(user){
-  const now = Date.now();
-
-  if(!user.tasks) user.tasks = {};
-
-  if(now - (user.tasks.lastTaskReset || 0) > 86400000){
-    user.tasks.dailyClick = 0;
-    user.tasks.lastTaskReset = now;
-  }
 }
 
 // ===== 邀請 =====
