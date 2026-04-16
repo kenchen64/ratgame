@@ -258,7 +258,7 @@ app.post('/withdraw', async (req,res)=>{
       console.log('withdraw error:', err.message);
 
       return res.json({
-        msg:'❌ 提領失敗（已回滾）'
+        msg:'❌ 提領失敗'
       });
     }
 
@@ -455,12 +455,12 @@ bot.hears('🏆 排行榜', async ctx=>{
 
   let msg='🏆 點擊榜\n';
   data.topClick.forEach((u,i)=>{
-    msg+=`${i+1}. 👤:${u.username},🧀:${u.balance}\n`;
+    msg+=`${i+1}. 👤:${u.username} 🧀:${u.balance}\n`;
   });
 
   msg+='\n⚔️ 偷取榜\n';
   data.topSteal.forEach((u,i)=>{
-    msg+=`${i+1}. 👤:${u.username},🧀:${u.balance}\n`;
+    msg+=`${i+1}. 👤:${u.username} 🧀:${u.balance}\n`;
   });
   ctx.reply(msg);
 });
