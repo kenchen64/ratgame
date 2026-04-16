@@ -25,6 +25,11 @@ const User = mongoose.models.User || mongoose.model('User',{
   wallet:String,
   banned:{type:Boolean,default:false},
   withdrawing:{type:Boolean,default:false},
+  tasks: {dailyClick: { type:Number, default:0 },
+          lastTaskReset: { type:Number, default:0 }
+         },
+  inviteBy: String,
+  invites: { type:Number, default:0 },
 });
 
 // ===== Web3（雙RPC防掉線🔥）=====
@@ -48,6 +53,43 @@ async function getUser(id, username='user'){
   }
   return u;
 }
+//每日任務重置
+function resetDailyTask(user){
+  const now = Date.now();
+
+  if(!user.tasks) user.tasks = {};
+
+  if(now - (user.tasks.lastTaskReset || 0) > 86400000){
+    user.tasks.dailyClick = 0;
+    user.tasks.lastTaskReset = now;
+  }
+}
+
+// ===== 邀請 =====
+app.post('/register', async (req,res)=>{
+  let user = await User.findOne({telegramId:req.body.telegramId});
+
+  if(!user){
+    user = await User.create({
+      telegramId:req.body.telegramId,
+      username:req.body.username
+    });
+
+    // 👉 邀請人
+    if(req.body.ref){
+      const inviter = await User.findOne({telegramId:req.body.ref});
+      if(inviter){
+        inviter.invites += 1;
+        inviter.balance += 10;
+        await inviter.save();
+
+        user.inviteBy = inviter.telegramId;
+      }
+    }
+  }
+
+  res.json(user);
+});
 
 // ===== 黑洞（修正不為0🔥）=====
 app.get('/blackhole', async (req,res)=>{
@@ -84,6 +126,7 @@ app.post('/me', async (req,res)=>{
   res.json(user);
 });
 
+// 點擊
 app.post('/click', async (req,res)=>{
   const user = await getUser(req.body.telegramId);
 
@@ -93,7 +136,13 @@ app.post('/click', async (req,res)=>{
 
   user.lastClick = Date.now();
   user.balance++;
-
+// 👉 每日任務  
+resetDailyTask(user);
+user.tasks.dailyClick += 1;
+// 👉 任務獎勵
+if(user.tasks.dailyClick === 50){
+  user.balance += 20;
+}
   await user.save();
   res.json(user);
 });
@@ -293,21 +342,41 @@ app.get('/rank', async (req,res)=>{
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
 const menu = Markup.keyboard([
-['🎮 開始遊戲','🖱 點擊赚起司'],
+['🎮 開始遊戲','👥 邀請好友']',  
+['🖱 點擊赚起司','📋 每日任務]',
 ['⚔️ 偷起司','🛡️ 防護盾'],
 ['🌌 黑洞總量','🔗 綁定錢包'],
-['💸 提領','🏆 排行榜']
+['💸 提領','🏆 排行榜'],
 ]).resize();
 
 // ===== FSM 狀態 =====
 const state = {};
 
 // ===== 開始 =====
-bot.start(ctx=>ctx.reply('🐭 遊戲開始',menu));
+bot.start(async ctx=>{
+  const ref = ctx.message.text.split(' ')[1];
+
+  const {data} = await axios.post(`http://localhost:${PORT}/register`,{
+    telegramId: ctx.from.id,
+    username: ctx.from.username,
+    ref
+  });
+
+  ctx.reply('🐭 歡迎', menu);
+});
 
 // ===== 開始遊戲 =====
 bot.hears('🎮 開始遊戲', ctx=>{
   ctx.reply('🎮 已開始', menu);
+});
+
+// ===== 邀請好友 =====
+bot.hears('👥 邀請好友', ctx=>{
+  clearState(ctx.from.id);
+
+  const link = `https://t.me/YOUR_BOT?start=${ctx.from.id}`;
+
+  ctx.reply(`邀請連結:\n${link}\n\n每邀請+10 🧀`);
 });
 
 // ===== 點擊 =====
@@ -319,6 +388,25 @@ bot.hears('🖱 點擊赚起司', async ctx=>{
   if(data.msg) return ctx.reply(data.msg);
 
   ctx.reply(`🆔Telegram: ${ctx.from.id}\n👤用戶名: ${ctx.from.username}\n🧀餘額: ${data.balance}`);
+});
+
+// ===== 每日任務 =====
+bot.hears('📋 每日任務', async ctx=>{
+  clearState(ctx.from.id);
+
+  const {data} = await axios.post(`http://localhost:${PORT}/me`,{
+    telegramId: ctx.from.id
+  });
+
+  const progress = data.tasks?.dailyClick || 0;
+
+  ctx.reply(
+`📋 每日任務
+點擊 50 次
+
+進度: ${progress}/50
+獎勵: 20 🧀`
+  );
 });
 
 // ===== 偷起司 =====
