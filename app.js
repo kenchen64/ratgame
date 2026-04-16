@@ -374,7 +374,7 @@ bot.hears('🎮 開始遊戲', ctx=>{
 bot.hears('👥 邀請好友', ctx=>{
   clearState(ctx.from.id);
 
-  const link = `https://t.me/YOUR_BOT?start=${ctx.from.id}`;
+  const link = `https://t.me/RatClickerGameBot?start=${ctx.from.id}`;
 
   ctx.reply(`邀請連結:\n${link}\n\n每邀請+10 🧀`);
 });
@@ -479,7 +479,7 @@ bot.on('text', async (ctx, next)=>{
   const s = state[ctx.from.id];
 
   // 👉 按鈕點擊直接清狀態（關鍵🔥）
-  const menuText = ['🎮','🖱','⚔️','🛡️','🌌','🔗','💸','🏆'];
+  const menuText = ['🎮','🖱','⚔️','🛡️','🌌','🔗','💸','🏆','📋','👥'];
 
   if(menuText.some(t=>text.includes(t))){
     delete state[ctx.from.id];
