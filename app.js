@@ -383,6 +383,8 @@ bot.on('text', async (ctx, next)=>{
     delete state[ctx.from.id];
     return ctx.reply(data.msg);
   }
+  return next();
+});
 
   // ===== 綁定 =====
   if(s === 'wallet'){
@@ -422,12 +424,12 @@ bot.hears('🏆 排行榜', async ctx=>{
 
   let msg='🏆 點擊榜\n';
   data.topClick.forEach((u,i)=>{
-    msg+=`${i+1}. ${u.username} ${u.balance}\n`;
+    msg+=`${i+1}. 👤:${u.username}🆔:${u.id} 🧀:${u.balance}\n`;
   });
 
   msg+='\n⚔️ 偷取榜\n';
   data.topSteal.forEach((u,i)=>{
-    msg+=`${i+1}. ${u.username} ${u.steal}\n`;
+    msg+=`${i+1}. 👤:${u.username}🆔:${u.id} 🧀:${u.balance}\n`;
   });
   ctx.reply(msg);
 });
