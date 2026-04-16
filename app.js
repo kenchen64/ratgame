@@ -23,8 +23,8 @@ const User = mongoose.models.User || mongoose.model('User',{
   shieldUntil:{type:Number,default:0},
   lastClick:{type:Number,default:0},
   wallet:String,
-  banned:{type:Boolean,default:false}
-  withdrawing:{type:Boolean,default:false}
+  banned:{type:Boolean,default:false},
+  withdrawing:{type:Boolean,default:false},
 });
 
 // ===== Web3（雙RPC防掉線🔥）=====
