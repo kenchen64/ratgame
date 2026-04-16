@@ -422,12 +422,12 @@ bot.hears('🏆 排行榜', async ctx=>{
 
   let msg='🏆 點擊榜\n';
   data.topClick.forEach((u,i)=>{
-    msg+=`${i+1}. 👤:${u.username},🆔:${u.id} 🧀:${u.balance}\n`;
+    msg+=`${i+1}. 👤:${u.username},🆔:${ctx.from.id} 🧀:${u.balance}\n`;
   });
 
   msg+='\n⚔️ 偷取榜\n';
   data.topSteal.forEach((u,i)=>{
-    msg+=`${i+1}. 👤:${u.username},🆔:${u.id} 🧀:${u.balance}\n`;
+    msg+=`${i+1}. 👤:${u.username},🆔:${ctx.from.id} 🧀:${u.balance}\n`;
   });
   ctx.reply(msg);
 });
