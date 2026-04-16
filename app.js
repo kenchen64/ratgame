@@ -96,7 +96,9 @@ app.post('/click', async (req,res)=>{
 
   user.lastClick = Date.now();
   user.balance++;
+  await user.save();
 
+  res.json(user);
 });
 
 app.post('/daily', async (req,res)=>{
