@@ -25,11 +25,8 @@ const User = mongoose.models.User || mongoose.model('User',{
   wallet:String,
   banned:{type:Boolean,default:false},
   withdrawing:{type:Boolean,default:false},
-  tasks: {dailyClick: { type:Number, default:0 },
-          lastTaskReset: { type:Number, default:0 }
-         },
-  inviteBy: String,
-  invites: { type:Number, default:0 },
+  referrer:String,
+  dailyClaim:{type:Number,default:0}
 });
 
 // ===== Web3（雙RPC防掉線🔥）=====
@@ -136,15 +133,25 @@ app.post('/click', async (req,res)=>{
 
   user.lastClick = Date.now();
   user.balance++;
-// 👉 每日任務  
-resetDailyTask(user);
-user.tasks.dailyClick += 1;
-// 👉 任務獎勵
-if(user.tasks.dailyClick === 50){
-  user.balance += 20;
-}
+
+});
+
+app.post('/daily', async (req,res)=>{
+  const user = await User.findOne({telegramId:req.body.telegramId});
+
+  const now = Date.now();
+  const oneDay = 86400000;
+
+  if(now - user.dailyClaim < oneDay){
+    return res.json({msg:'⏳ 今日已領取'});
+  }
+
+  user.balance += 30;
+  user.dailyClaim = now;
+
   await user.save();
-  res.json(user);
+
+  res.json({msg:'🎁 每日獎勵 +30 🧀'});
 });
 
 // 偷取 隨機或指定
@@ -343,7 +350,7 @@ const bot = new Telegraf(process.env.BOT_TOKEN);
 
 const menu = Markup.keyboard([
 ['🎮 開始遊戲','👥 邀請好友'],  
-['🖱 點擊赚起司','📋 每日任務'],
+['🖱 點擊赚起司','🎁 每日任務'],
 ['⚔️ 偷起司','🛡️ 防護盾'],
 ['🌌 黑洞總量','🔗 綁定錢包'],
 ['💸 提領','🏆 排行榜'],
@@ -353,16 +360,30 @@ const menu = Markup.keyboard([
 const state = {};
 
 // ===== 開始 =====
-bot.start(async ctx=>{
-  const ref = ctx.message.text.split(' ')[1];
+bot.start(async (ctx) => {
+  const args = ctx.message.text.split(' ');
+  const ref = args[1]; // 邀請碼
 
-  const {data} = await axios.post(`http://localhost:${PORT}/register`,{
-    telegramId: ctx.from.id,
-    username: ctx.from.username,
-    ref
-  });
+  let user = await User.findOne({ telegramId: ctx.from.id });
 
-  ctx.reply('🐭 歡迎', menu);
+  if (!user) {
+    user = await User.create({
+      telegramId: ctx.from.id,
+      username: ctx.from.username,
+      referrer: ref || null
+    });
+
+    // 👉 推薦獎勵
+    if (ref) {
+      const inviter = await User.findOne({ telegramId: ref });
+      if (inviter) {
+        inviter.balance += 20;
+        await inviter.save();
+      }
+    }
+  }
+
+  ctx.reply('🐭 歡迎進入 Rat Game', menu);
 });
 
 // ===== 開始遊戲 =====
@@ -371,12 +392,14 @@ bot.hears('🎮 開始遊戲', ctx=>{
 });
 
 // ===== 邀請好友 =====
-bot.hears('👥 邀請好友', ctx=>{
-  clearState(ctx.from.id);
+bot.hears('👥 邀請好友', async ctx=>{
+  delete state[ctx.from.id]; // 👉 清FSM
 
-  const link = `https://t.me/RatClickerGameBot?start=${ctx.from.id}`;
+  const id = ctx.from.id;
 
-  ctx.reply(`邀請連結:\n${link}\n\n每邀請+10 🧀`);
+  const link = `https://t.me/${process.env.BOT_USERNAME}?start=${id}`;
+
+  ctx.reply(`👥 邀請連結：\n${link}\n\n好友加入你可得 20 🧀`);
 });
 
 // ===== 點擊 =====
@@ -391,22 +414,14 @@ bot.hears('🖱 點擊赚起司', async ctx=>{
 });
 
 // ===== 每日任務 =====
-bot.hears('📋 每日任務', async ctx=>{
-  clearState(ctx.from.id);
+bot.hears('🎁 每日任務', async ctx=>{
+  delete state[ctx.from.id]; // 👉 清FSM
 
-  const {data} = await axios.post(`http://localhost:${PORT}/me`,{
-    telegramId: ctx.from.id
+  const {data} = await axios.post(`http://localhost:${PORT}/daily`,{
+    telegramId:ctx.from.id
   });
 
-  const progress = data.tasks?.dailyClick || 0;
-
-  ctx.reply(
-`📋 每日任務
-點擊 50 次
-
-進度: ${progress}/50
-獎勵: 20 🧀`
-  );
+  ctx.reply(data.msg);
 });
 
 // ===== 偷起司 =====
@@ -479,7 +494,7 @@ bot.on('text', async (ctx, next)=>{
   const s = state[ctx.from.id];
 
   // 👉 按鈕點擊直接清狀態（關鍵🔥）
-  const menuText = ['🎮','🖱','⚔️','🛡️','🌌','🔗','💸','🏆','📋','👥'];
+  const menuText = ['🎮','🖱','⚔️','🛡️','🌌','🔗','💸','🏆','🎁','👥'];
 
   if(menuText.some(t=>text.includes(t))){
     delete state[ctx.from.id];
