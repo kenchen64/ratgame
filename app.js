@@ -416,16 +416,18 @@ bot.hears('💸 提領', async ctx=>{
 bot.hears('🏆 排行榜', async ctx=>{
   delete state[ctx.from.id];
 
-  const {data} = await axios.get(`http://localhost:${PORT}/rank`);
+  const {data} = await axios.get(`http://localhost:${PORT}/rank`,{
+    telegramId:ctx.from.id
+  });
 
   let msg='🏆 點擊榜\n';
   data.topClick.forEach((u,i)=>{
-    msg+=`${i+1}. 👤:${u.username}🆔:${u.id} 🧀:${u.balance}\n`;
+    msg+=`${i+1}. 👤:${u.username},🆔:${u.id} 🧀:${u.balance}\n`;
   });
 
   msg+='\n⚔️ 偷取榜\n';
   data.topSteal.forEach((u,i)=>{
-    msg+=`${i+1}. 👤:${u.username}🆔:${u.id} 🧀:${u.balance}\n`;
+    msg+=`${i+1}. 👤:${u.username},🆔:${u.id} 🧀:${u.balance}\n`;
   });
   ctx.reply(msg);
 });
