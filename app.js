@@ -349,30 +349,44 @@ const menu = Markup.keyboard([
 const state = {};
 
 // ===== 開始 =====
+// ===== 🔥 修正 /start（FSM安全版，不會再無反應）=====
 bot.start(async (ctx) => {
-  const args = ctx.message.text.split(' ');
-  const ref = args[1]; // 邀請碼
+  try {
+    // 👉 重要：先清除 FSM 狀態（避免卡住）
+    delete state[ctx.from.id];
 
-  let user = await User.findOne({ telegramId: ctx.from.id });
+    const text = ctx.message.text || '';
+    const parts = text.split(' ');
+    const ref = parts[1] || null;
 
-  if (!user) {
-    user = await User.create({
-      telegramId: ctx.from.id,
-      username: ctx.from.username,
-      referrer: ref || null
-    });
+    let user = await User.findOne({ telegramId: ctx.from.id });
 
-    // 👉 推薦獎勵
-    if (ref) {
-      const inviter = await User.findOne({ telegramId: ref });
-      if (inviter) {
-        inviter.balance += 20;
-        await inviter.save();
+    // ===== 新用戶 =====
+    if (!user) {
+      user = await User.create({
+        telegramId: ctx.from.id,
+        username: ctx.from.username || `user_${ctx.from.id}`,
+        referrer: ref
+      });
+
+      // 👉 推薦獎勵（防自己推薦🔥）
+      if (ref && ref !== String(ctx.from.id)) {
+        const inviter = await User.findOne({ telegramId: ref });
+
+        if (inviter) {
+          inviter.balance += 20;
+          await inviter.save();
+        }
       }
     }
-  }
 
-  ctx.reply('🐭 歡迎進入 Rat Game', menu);
+    // 👉 回應（確保一定回）
+    return ctx.reply('🐭 歡迎進入 Rat Game', menu);
+
+  } catch (err) {
+    console.log('/start error:', err);
+    return ctx.reply('❌ 系統錯誤，請稍後再試');
+  }
 });
 
 // ===== 開始遊戲 =====
@@ -480,12 +494,17 @@ bot.hears('🔗 綁定錢包', async ctx=>{
 // ===== 核心 FSM 修正🔥 =====
 bot.on('text', async (ctx, next)=>{
   const text = ctx.message.text.trim();
+    // 👉 關鍵：放行所有 "/" 指令（包含 /start🔥）
+  if (text.startsWith('/')) {
+    delete state[ctx.from.id];
+    return next();
+  }
   const s = state[ctx.from.id];
 
   // 👉 按鈕點擊直接清狀態（關鍵🔥）
   const menuText = ['🎮','🖱','⚔️','🛡️','🌌','🔗','💸','🏆','🎁','👥'];
 
-  if(menuText.some(t=>text.includes(t))){
+if (menuList.some(x => text.includes(x))) {
     delete state[ctx.from.id];
     return next();
   }
