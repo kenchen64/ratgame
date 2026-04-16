@@ -342,8 +342,8 @@ app.get('/rank', async (req,res)=>{
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
 const menu = Markup.keyboard([
-['🎮 開始遊戲','👥 邀請好友']',  
-['🖱 點擊赚起司','📋 每日任務]',
+['🎮 開始遊戲','👥 邀請好友'],  
+['🖱 點擊赚起司','📋 每日任務],
 ['⚔️ 偷起司','🛡️ 防護盾'],
 ['🌌 黑洞總量','🔗 綁定錢包'],
 ['💸 提領','🏆 排行榜'],
