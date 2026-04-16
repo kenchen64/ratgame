@@ -24,6 +24,7 @@ const User = mongoose.models.User || mongoose.model('User',{
   lastClick:{type:Number,default:0},
   wallet:String,
   banned:{type:Boolean,default:false}
+  withdrawing:{type:Boolean,default:false}
 });
 
 // ===== Web3（雙RPC防掉線🔥）=====
@@ -209,7 +210,9 @@ app.post('/bind', async (req,res)=>{
 // 提領
 app.post('/withdraw', async (req,res)=>{
   try{
-    const user = await getUser(req.body.telegramId);
+    const user = await User.findOne({telegramId:req.body.telegramId});
+
+    if(!user) return res.json({msg:'❌ 無玩家'});
 
     if(!user.wallet)
       return res.json({msg:'❌ 未綁定錢包'});
@@ -217,19 +220,51 @@ app.post('/withdraw', async (req,res)=>{
     if(user.balance < 100)
       return res.json({msg:'❌ 最低100'});
 
-    const tx = await contract.transfer(
-      user.wallet,
-      ethers.parseUnits(user.balance.toString(),18)
-    );
+    if(user.withdrawing)
+      return res.json({msg:'⏳ 提領處理中'});
 
+    // ===== 鎖定（避免重複提領）=====
+    user.withdrawing = true;
+
+    const amount = user.balance;
     user.balance = 0;
+
     await user.save();
 
-    res.json({msg:`✅ 提領成功\n${tx.hash}`});
+    try{
+      // ===== 取得 decimals =====
+      const decimals = await contract.decimals();
+      const value = ethers.parseUnits(amount.toString(), decimals);
+
+      // ===== 發送交易 =====
+      const tx = await contract.transfer(user.wallet, value);
+
+      // ===== 等待上鏈確認🔥 =====
+      await tx.wait();
+
+      user.withdrawing = false;
+      await user.save();
+
+      return res.json({
+        msg:`✅ 提領成功\nTx: ${tx.hash}`
+      });
+
+    }catch(err){
+      // ===== 失敗回滾🔥 =====
+      user.balance += amount;
+      user.withdrawing = false;
+      await user.save();
+
+      console.log('withdraw error:', err.message);
+
+      return res.json({
+        msg:'❌ 提領失敗（已回滾）'
+      });
+    }
 
   }catch(e){
-    console.log('withdraw error:', e.message);
-    res.json({msg:`❌ 提領失敗\n${e.message}`});
+    console.log(e);
+    res.json({msg:'❌ 系統錯誤'});
   }
 });
 
@@ -416,18 +451,16 @@ bot.hears('💸 提領', async ctx=>{
 bot.hears('🏆 排行榜', async ctx=>{
   delete state[ctx.from.id];
 
-  const {data} = await axios.get(`http://localhost:${PORT}/rank`,{
-    telegramId:ctx.from.id
-  });
+  const {data} = await axios.get(`http://localhost:${PORT}/rank`);
 
   let msg='🏆 點擊榜\n';
   data.topClick.forEach((u,i)=>{
-    msg+=`${i+1}. 👤:${u.username},🆔:${ctx.from.id} 🧀:${u.balance}\n`;
+    msg+=`${i+1}. 👤:${u.username},🧀:${u.balance}\n`;
   });
 
   msg+='\n⚔️ 偷取榜\n';
   data.topSteal.forEach((u,i)=>{
-    msg+=`${i+1}. 👤:${u.username},🆔:${ctx.from.id} 🧀:${u.balance}\n`;
+    msg+=`${i+1}. 👤:${u.username},🧀:${u.balance}\n`;
   });
   ctx.reply(msg);
 });
