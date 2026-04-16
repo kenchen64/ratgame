@@ -51,32 +51,6 @@ async function getUser(id, username='user'){
   return u;
 }
 
-// ===== 邀請 =====
-app.post('/register', async (req,res)=>{
-  let user = await User.findOne({telegramId:req.body.telegramId});
-
-  if(!user){
-    user = await User.create({
-      telegramId:req.body.telegramId,
-      username:req.body.username
-    });
-
-    // 👉 邀請人
-    if(req.body.ref){
-      const inviter = await User.findOne({telegramId:req.body.ref});
-      if(inviter){
-        inviter.invites += 1;
-        inviter.balance += 10;
-        await inviter.save();
-
-        user.inviteBy = inviter.telegramId;
-      }
-    }
-  }
-
-  res.json(user);
-});
-
 // ===== 黑洞（修正不為0🔥）=====
 app.get('/blackhole', async (req,res)=>{
   try{
