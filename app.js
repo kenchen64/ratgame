@@ -356,9 +356,7 @@ bot.on('text', async (ctx, next)=>{
   const s = state[ctx.from.id];
 
   // 👉 按鈕點擊直接清狀態（關鍵🔥）
-  const menuText = [
-    '🎮','🖱','⚔️','🛡️','🌌','🔗','💸','🏆'
-  ];
+  const menuText = ['🎮','🖱','⚔️','🛡️','🌌','🔗','💸','🏆'];
 
   if(menuText.some(t=>text.includes(t))){
     delete state[ctx.from.id];
@@ -383,8 +381,6 @@ bot.on('text', async (ctx, next)=>{
     delete state[ctx.from.id];
     return ctx.reply(data.msg);
   }
-  return next();
-});
 
   // ===== 綁定 =====
   if(s === 'wallet'){
