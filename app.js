@@ -420,20 +420,15 @@ bot.hears('🔗 綁定錢包', async ctx=>{
   ctx.reply('輸入錢包地址:');
 });
 
-// ===== 核心 FSM 修正🔥 =====
+// ===== FSM核心🔥 =====
 bot.on('text', async (ctx, next)=>{
   const text = ctx.message.text.trim();
-    // 👉 關鍵：放行所有 "/" 指令（包含 /start🔥）
-  if (text.startsWith('/')) {
-    delete state[ctx.from.id];
-    return next();
-  }
   const s = state[ctx.from.id];
 
-  // 👉 按鈕點擊直接清狀態（關鍵🔥）
-  const menuText = ['🎮','🖱','⚔️','🛡️','🌌','🔗','💸','🏆','🎁'];
+  const isMenu = ['🎮','🖱','⚔️','🛡️','🌌','🔗','💸','🏆','🎁']
+    .some(x=>text.includes(x));
 
-if (menuList.some(x => text.includes(x))) {
+  if(isMenu){
     delete state[ctx.from.id];
     return next();
   }
