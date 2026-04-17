@@ -325,60 +325,14 @@ const menu = Markup.keyboard([
 const state = {};
 
 // ===== 開始 =====
-// ===== 🔥 修正 /start（FSM安全版，不會再無反應）=====
-bot.start(async (ctx) => {
-  try {
-    // 👉 重要：先清除 FSM 狀態（避免卡住）
-    delete state[ctx.from.id];
-
-    const text = ctx.message.text || '';
-    const parts = text.split(' ');
-    const ref = parts[1] || null;
-
-    let user = await User.findOne({ telegramId: ctx.from.id });
-
-    // ===== 新用戶 =====
-    if (!user) {
-      user = await User.create({
-        telegramId: ctx.from.id,
-        username: ctx.from.username || `user_${ctx.from.id}`,
-        referrer: ref
-      });
-
-      // 👉 推薦獎勵（防自己推薦🔥）
-      if (ref && ref !== String(ctx.from.id)) {
-        const inviter = await User.findOne({ telegramId: ref });
-
-        if (inviter) {
-          inviter.balance += 20;
-          await inviter.save();
-        }
-      }
-    }
-
-    // 👉 回應（確保一定回）
-    return ctx.reply('🐭 歡迎進入 Rat Game', menu);
-
-  } catch (err) {
-    console.log('/start error:', err);
-    return ctx.reply('❌ 系統錯誤，請稍後再試');
-  }
+bot.start(ctx=>{
+  ctx.reply('🐭 遊戲開始', menu);
 });
+
 
 // ===== 開始遊戲 =====
 bot.hears('🎮 開始遊戲', ctx=>{
   ctx.reply('🎮 已開始', menu);
-});
-
-// ===== 邀請好友 =====
-bot.hears('👥 邀請好友', async ctx=>{
-  delete state[ctx.from.id]; // 👉 清FSM
-
-  const id = ctx.from.id;
-
-  const link = `https://t.me/${process.env.BOT_USERNAME}?start=${id}`;
-
-  ctx.reply(`👥 邀請連結：\n${link}\n\n好友加入你可得 20 🧀`);
 });
 
 // ===== 點擊 =====
