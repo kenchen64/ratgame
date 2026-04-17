@@ -25,7 +25,10 @@ const User = mongoose.models.User || mongoose.model('User',{
   wallet:String,
   banned:{type:Boolean,default:false},
   withdrawing:{type:Boolean,default:false},
-  dailyClaim:{type:Number,default:0},
+  tasks: {
+  dailyClick: { type:Number, default:0 },
+  lastTaskReset: { type:Number, default:0 }
+  },
 });
 
 // ===== Web3（雙RPC防掉線🔥）=====
@@ -48,6 +51,18 @@ async function getUser(id, username='user'){
     u = await User.create({telegramId:id, username});
   }
   return u;
+}
+
+// ===== 每日任務重置 =====
+function resetDailyTask(user){
+  const now = Date.now();
+
+  if(!user.tasks) user.tasks = {};
+
+  if(now - (user.tasks.lastTaskReset || 0) > 86400000){
+    user.tasks.dailyClick = 0;
+    user.tasks.lastTaskReset = now;
+  }
 }
 
 // ===== 黑洞（修正不為0🔥）=====
@@ -100,18 +115,23 @@ app.post('/click', async (req,res)=>{
   res.json(user);
 });
 
+// 每日任務
 app.post('/daily', async (req,res)=>{
   const user = await User.findOne({telegramId:req.body.telegramId});
 
   const now = Date.now();
   const oneDay = 86400000;
 
-  if(now - user.dailyClaim < oneDay){
+  if(now - user.tasks.dailyClick < oneDay){
     return res.json({msg:'⏳ 今日已領取'});
   }
 
+resetDailyTask(user);
+user.tasks.dailyClick += 1;
+// 👉 任務獎勵
+if(user.tasks.dailyClick === 50){
   user.balance += 30;
-  user.dailyClaim = now;
+}
 
   await user.save();
 
@@ -346,14 +366,22 @@ bot.hears('🖱 點擊赚起司', async ctx=>{
 });
 
 // ===== 每日任務 =====
-bot.hears('🎁 每日任務', async ctx=>{
-  delete state[ctx.from.id]; // 👉 清FSM
+bot.hears('📋 每日任務', async ctx=>{
+  clearState(ctx.from.id);
 
-  const {data} = await axios.post(`http://localhost:${PORT}/daily`,{
-    telegramId:ctx.from.id
+  const {data} = await axios.post(`http://localhost:${PORT}/me`,{
+    telegramId: ctx.from.id
   });
 
-  ctx.reply(data.msg);
+  const progress = data.tasks?.dailyClick || 0;
+
+  ctx.reply(
+`📋 每日任務
+點擊 50 次
+
+進度: ${progress}/50
+獎勵: 20 🧀`
+  );
 });
 
 // ===== 偷起司 =====
