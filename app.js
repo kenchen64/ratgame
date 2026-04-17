@@ -25,7 +25,6 @@ const User = mongoose.models.User || mongoose.model('User',{
   wallet:String,
   banned:{type:Boolean,default:false},
   withdrawing:{type:Boolean,default:false},
-  referrer:String,
   dailyClaim:{type:Number,default:0},
 });
 
@@ -314,8 +313,8 @@ app.get('/rank', async (req,res)=>{
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
 const menu = Markup.keyboard([
-['🎮 開始遊戲','👥 邀請好友'],  
-['🖱 點擊赚起司','🎁 每日任務'],
+['🎮 開始遊戲','🎁 每日任務'],  
+['🖱 點擊赚起司',],
 ['⚔️ 偷起司','🛡️ 防護盾'],
 ['🌌 黑洞總量','🔗 綁定錢包'],
 ['💸 提領','🏆 排行榜'],
@@ -432,7 +431,7 @@ bot.on('text', async (ctx, next)=>{
   const s = state[ctx.from.id];
 
   // 👉 按鈕點擊直接清狀態（關鍵🔥）
-  const menuText = ['🎮','🖱','⚔️','🛡️','🌌','🔗','💸','🏆','🎁','👥'];
+  const menuText = ['🎮','🖱','⚔️','🛡️','🌌','🔗','💸','🏆','🎁'];
 
 if (menuList.some(x => text.includes(x))) {
     delete state[ctx.from.id];
