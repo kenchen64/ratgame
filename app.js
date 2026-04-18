@@ -129,7 +129,12 @@ app.post('/click', async (req,res)=>{
 
   await user.save();
 
-  ctx.reply(`🧀 ${user.balance} 📋 每日任務進度點擊: ${user.tasks.clickCount}/30` );
+  ctx.reply(
+`🧀 ${user.balance}
+
+📋 每日任務進度
+點擊: ${user.tasks.clickCount}/30`
+  );
 });
 
 // 偷取 隨機或指定
