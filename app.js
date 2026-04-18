@@ -130,6 +130,7 @@ app.post('/click', async (req,res)=>{
   await user.save();
 
   res.json(user);
+  });
 
 // 偷取 隨機或指定
 app.post('/steal', async (req,res)=>{
@@ -338,10 +339,26 @@ const menu = Markup.keyboard([
 const state = {};
 
 // ===== 開始 =====
-bot.start(ctx=>{
-  ctx.reply('🐭 遊戲開始', menu);
-});
+bot.start(async (ctx) => {
+  delete state[ctx.from.id];
 
+  let user = await getUser(ctx.from.id, ctx.from.username);
+
+  resetDailyTasks(user);
+
+  const now = Date.now();
+  const yesterday = now - 86400000;
+
+  if (!user.tasks.lastLoginAt || user.tasks.lastLoginAt < yesterday) {
+    user.tasks.loginStreak += 1;
+  }
+
+  user.tasks.lastLoginAt = now;
+
+  await user.save();
+
+  ctx.reply('🐭 歡迎回來', menu);
+});
 
 // ===== 開始遊戲 =====
 bot.hears('🎮 開始遊戲', ctx=>{
