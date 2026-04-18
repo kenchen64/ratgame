@@ -370,7 +370,7 @@ bot.hears('🖱 點擊赚起司', async ctx=>{
   const {data} = await axios.post(`http://localhost:${PORT}/click`,{
     telegramId:ctx.from.id
   });
-
+  const user = await getUser(ctx.from.id);
   if(data.msg) return ctx.reply(data.msg);
 
   ctx.reply(`🆔Telegram: ${ctx.from.id}\n
