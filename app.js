@@ -126,12 +126,10 @@ app.post('/daily', async (req, res) => {
     user.tasks.dailyClick += 1;
 
 // 👉 任務獎勵
- let reward = 10;
-    let rewardMsg = '🎁 每日獎勵 +10 🧀';
-
+    let reward = 0;
     if (user.tasks.dailyClick >= 50) {
       reward += 30;
-      rewardMsg = '🏆 完成任務 +40 🧀';
+      rewardMsg = '🏆 完成任務 +30 🧀';
     }
 
     user.balance += reward;
