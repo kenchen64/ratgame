@@ -418,7 +418,6 @@ bot.hears('📋 任務', async ctx => {
 
   const user = await getUser(ctx.from.id);
 
-  resetTasks(user);
   await user.save();
 
   ctx.reply(
@@ -589,7 +588,7 @@ bot.hears('🏆 排行榜', async ctx=>{
 
   msg+='\n👥 邀請榜\n';
   data.inviteTop.forEach((u,i)=>{
-    msg+=`${i+1}. ${u.username} - ${u.inviteCount}\n`;
+    msg+=`${i+1}. ${u.username} 👤:${u.inviteCount}\n`;
   });
 
   ctx.reply(msg);
