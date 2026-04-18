@@ -374,7 +374,7 @@ bot.hears('🖱 點擊赚起司', async ctx=>{
 });
 
 // ===== 每日任務 =====
-bot.hears('📋 每日任務', async ctx => {
+bot.hears('🎁 每日任務', async ctx => {
   delete state[ctx.from.id]; // 👉 清 FSM
 
   try {
