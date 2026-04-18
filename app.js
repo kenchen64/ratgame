@@ -118,19 +118,24 @@ app.post('/click', async (req,res)=>{
 // 每日任務
 app.post('/daily', async (req,res)=>{
   const user = await User.findOne({telegramId:req.body.telegramId});
+  if (!user) return res.status(404).json({ msg: '找不到使用者' });
 
-  const now = Date.now();
-  const oneDay = 86400000;
+  const now = new Date();
+  const todayStart = new Date().setHours(0, 0, 0, 0);
 
-  if(now - user.tasks.dailyClick < oneDay){
-    return res.json({msg:'⏳ 今日已領取'});
+  if (user.tasks.dailyAt && (now - user.tasks.lastDailyAt > todayStart) {
+    return res.json({ msg: '⏳ 今日已領取' });
   }
 
-resetDailyTask(user);
-user.tasks.dailyClick += 1;
+user.tasks.lastDailtAt = Date.now();
+user.tasks.dailyClick = (user.tasks.dailyClick || 0) = 1; //累積次數+1
 // 👉 任務獎勵
-if(user.tasks.dailyClick === 50){
+  let rewardMsg = "每日獎勵 +10 🧀";
+  user.balance += 10;
+  
+if(user.tasks.dailyClick === 50) {
   user.balance += 30;
+  rewardMsg = "恭喜完成任務，額外獎勵 +30 🧀";
 }
 
   await user.save();
