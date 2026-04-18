@@ -42,7 +42,6 @@ tasks: {
     totalSteal: { type: Number, default: 0 }
   }
 }
-}
 });
 
 // ===== Web3（雙RPC防掉線🔥）=====
