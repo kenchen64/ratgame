@@ -27,7 +27,7 @@ const User = mongoose.models.User || mongoose.model('User',{
   withdrawing:{type:Boolean,default:false},
   tasks: {
   dailyClick: { type:Number, default:0 },
-  lastTaskReset: { type:Number, default:0 }
+  lastTaskAt: { type:Number, default:0 }
   },
 });
 
@@ -51,18 +51,6 @@ async function getUser(id, username='user'){
     u = await User.create({telegramId:id, username});
   }
   return u;
-}
-
-// ===== 每日任務重置 =====
-function resetDailyTask(user){
-  const now = Date.now();
-
-  if(!user.tasks) user.tasks = {};
-
-  if(now - (user.tasks.lastTaskReset || 0) > 86400000){
-    user.tasks.dailyClick = 0;
-    user.tasks.lastTaskReset = now;
-  }
 }
 
 // ===== 黑洞（修正不為0🔥）=====
@@ -123,11 +111,11 @@ app.post('/daily', async (req,res)=>{
   const now = new Date();
   const todayStart = new Date().setHours(0, 0, 0, 0);
 
-  if (user.tasks.dailyAt && (now - user.tasks.lastDailyAt > todayStart) {
+  if (user.tasks.lastdailyAt && (now - user.tasks.lastDailyAt > todayStart) {
     return res.json({ msg: '⏳ 今日已領取' });
   }
 
-user.tasks.lastDailtAt = Date.now();
+user.tasks.lastDailyAt = Date.now();
 user.tasks.dailyClick = (user.tasks.dailyClick || 0) = 1; //累積次數+1
 // 👉 任務獎勵
   let rewardMsg = "每日獎勵 +10 🧀";
