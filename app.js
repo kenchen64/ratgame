@@ -469,6 +469,11 @@ bot.hears('🔗 綁定錢包', async ctx=>{
 // ===== FSM核心🔥 =====
 bot.on('text', async (ctx, next)=>{
   const text = ctx.message.text.trim();
+    if (text.startsWith('/')) {
+    delete state[ctx.from.id];
+    return next();
+  }
+
   const s = state[ctx.from.id];
 
   const isMenu = ['🎮','🖱','⚔️','🛡️','🌌','🔗','💸','🏆','🎁']
