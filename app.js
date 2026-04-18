@@ -224,8 +224,8 @@ app.post('/steal', async (req,res)=>{
     await target.save();
     await user.save();
 
-    res.json({
-      msg:`🐭 成功偷到 ${target.username}\n+${amount} 🧀` 📋 任務進度: ${attacker.tasks.stealCount}/30`
+    return.res.json({
+      msg:`🐭 成功偷到 ${target.username}\n+${amount} 🧀 📋 任務進度: ${attacker.tasks.stealCount}/30`
     });
 
   }catch(e){
