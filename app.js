@@ -104,31 +104,46 @@ app.post('/click', async (req,res)=>{
 });
 
 // 每日任務
-app.post('/daily', async (req,res)=>{
-  const user = await User.findOne({telegramId:req.body.telegramId});
-  if (!user) return res.status(404).json({ msg: '找不到使用者' });
+app.post('/daily', async (req, res) => {
+  try {
+    const user = await User.findOne({ telegramId: req.body.telegramId });
+    if (!user) return res.json({ msg: '❌ 找不到使用者' });
 
-  const now = new Date();
-  const todayStart = new Date().setHours(0, 0, 0, 0);
+    // 👉 確保 tasks 存在（重要🔥）
+    if (!user.tasks) {
+      user.tasks = { dailyClick: 0, lastDailyAt: 0 };
+    }
 
-  if (user.tasks.lastdailyAt && user.tasks.lastDailyAt > todayStart) {
-    return res.json({ msg: '⏳ 今日已領取' });
-  }
+    const now = Date.now();
+    const todayStart = new Date().setHours(0, 0, 0, 0);
 
-user.tasks.lastDailyAt = Date.now();
-user.tasks.dailyClick = (user.tasks.dailyClick || 0) + 1; //累積次數+1
+    // 👉 修正欄位名稱（統一）
+    if (user.tasks.lastDailyAt > todayStart) {
+      return res.json({ msg: '⏳ 今日已領取' });
+    }
+
+    user.tasks.lastDailyAt = now;
+    user.tasks.dailyClick += 1;
+
 // 👉 任務獎勵
-  let rewardMsg = "每日獎勵 +10 🧀";
-  user.balance += 10;
-  
-if(user.tasks.dailyClick === 50) {
-  user.balance += 30;
-  rewardMsg = "恭喜完成任務，額外獎勵 +30 🧀";
-}
+ let reward = 10;
+    let rewardMsg = '🎁 每日獎勵 +10 🧀';
 
-  await user.save();
+    if (user.tasks.dailyClick >= 50) {
+      reward += 30;
+      rewardMsg = '🏆 完成任務 +40 🧀';
+    }
 
-  res.json({msg:'🎁 每日獎勵 +30 🧀'});
+    user.balance += reward;
+
+    await user.save();
+
+    res.json({ msg: rewardMsg });
+
+  } catch (err) {
+    console.log('daily error:', err);
+    res.json({ msg: '❌ 任務錯誤' });
+  }
 });
 
 // 偷取 隨機或指定
@@ -359,22 +374,32 @@ bot.hears('🖱 點擊赚起司', async ctx=>{
 });
 
 // ===== 每日任務 =====
-bot.hears('📋 每日任務', async ctx=>{
-  clearState(ctx.from.id);
+bot.hears('📋 每日任務', async ctx => {
+  delete state[ctx.from.id]; // 👉 清 FSM
 
-  const {data} = await axios.post(`http://localhost:${PORT}/me`,{
-    telegramId: ctx.from.id
-  });
+  try {
+    // 👉 先領獎
+    const { data } = await axios.post(`http://localhost:${PORT}/daily`, {
+      telegramId: ctx.from.id
+    });
 
-  const progress = data.tasks?.dailyClick || 0;
+    // 👉 再顯示進度
+    const me = await axios.post(`http://localhost:${PORT}/me`, {
+      telegramId: ctx.from.id
+    });
 
-  ctx.reply(
-`📋 每日任務
-點擊 50 次
+    const progress = me.data.tasks?.dailyClick || 0;
 
-進度: ${progress}/50
-獎勵: 20 🧀`
-  );
+    ctx.reply(
+`${data.msg}
+
+📋 任務進度
+進度: ${progress}/50`
+    );
+
+  } catch (err) {
+    ctx.reply('❌ 任務錯誤');
+  }
 });
 
 // ===== 偷起司 =====
