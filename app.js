@@ -111,7 +111,7 @@ app.post('/daily', async (req,res)=>{
   const now = new Date();
   const todayStart = new Date().setHours(0, 0, 0, 0);
 
-  if (user.tasks.lastdailyAt && (now - user.tasks.lastDailyAt > todayStart) {
+  if (user.tasks.lastdailyAt && user.tasks.lastDailyAt > todayStart) {
     return res.json({ msg: '⏳ 今日已領取' });
   }
 
