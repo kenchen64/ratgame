@@ -402,8 +402,6 @@ bot.hears('🎁 每日任務', async ctx => {
 bot.hears('⚔️ 偷起司', ctx=>{
   ctx.reply('輸入:\n/steal (隨機)\n/steal @username\n/steal id');
 });
-  const user = await getUser(req.body.telegramId);
-ctx.reply('⚔️ 每日任務進度偷起司: ${user.tasks.stealCount}/30');
 bot.command('steal', async ctx=>{
   try{
     await ctx.reply('🐭 潛入中...');
