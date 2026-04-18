@@ -338,25 +338,8 @@ const menu = Markup.keyboard([
 const state = {};
 
 // ===== 開始 =====
-bot.start(async (ctx) => {
-  delete state[ctx.from.id];
-
-  let user = await getUser(ctx.from.id, ctx.from.username);
-
-  resetDailyTasks(user);
-
-  const now = Date.now();
-  const yesterday = now - 86400000;
-
-  if (!user.tasks.lastLoginAt || user.tasks.lastLoginAt < yesterday) {
-    user.tasks.loginStreak += 1;
-  }
-
-  user.tasks.lastLoginAt = now;
-
-  await user.save();
-
-  ctx.reply('🐭 歡迎回來', menu);
+bot.start(ctx=>{
+  ctx.reply('🐭 遊戲開始', menu);
 });
 
 
