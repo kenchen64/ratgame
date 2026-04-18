@@ -115,12 +115,14 @@ app.post('/me', async (req,res)=>{
 app.post('/click', async (req,res)=>{
   const user = await getUser(req.body.telegramId);
 
+  resetDailyTasks(user);
+
   if(Date.now()-user.lastClick < 3000){
     return res.json({msg:'⏳ 點擊過快', balance:user.balance});
   }
 
   user.lastClick = Date.now();
-  user.balance +=1 ;
+  user.balance += 1 ;
   
   // 👉 任務進度
   user.tasks.clickCount += 1;
@@ -128,47 +130,6 @@ app.post('/click', async (req,res)=>{
   await user.save();
 
   ctx.reply(`🧀 ${user.balance} 📋 每日任務進度點擊: ${user.tasks.clickCount}/30` );
-});
-
-// 每日任務
-app.post('/daily', async (req, res) => {
-  try {
-    const user = await User.findOne({ telegramId: req.body.telegramId });
-    if (!user) return res.json({ msg: '❌ 找不到使用者' });
-
-    // 👉 確保 tasks 存在（重要🔥）
-    if (!user.tasks) {
-      user.tasks = { dailyClick: 0, lastDailyAt: 0 };
-    }
-
-    const now = Date.now();
-    const todayStart = new Date().setHours(0, 0, 0, 0);
-
-    // 👉 修正欄位名稱（統一）
-    if (user.tasks.lastDailyAt > todayStart) {
-      return res.json({ msg: '⏳ 今日已領取' });
-    }
-
-    user.tasks.lastDailyAt = now;
-    user.tasks.dailyClick += 1;
-
-// 👉 任務獎勵
-    let reward = 0;
-    if (user.tasks.dailyClick >= 50) {
-      reward += 30;
-      rewardMsg = '🏆 完成任務 +30 🧀';
-    }
-
-    user.balance += reward;
-
-    await user.save();
-
-    res.json({ msg: rewardMsg });
-
-  } catch (err) {
-    console.log('daily error:', err);
-    res.json({ msg: '❌ 任務錯誤' });
-  }
 });
 
 // 偷取 隨機或指定
