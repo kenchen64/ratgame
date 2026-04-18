@@ -348,8 +348,6 @@ bot.start(async (ctx) => {
 
   const user = await getUser(ctx.from.id, ctx.from.username);
 
-  resetTasks(user);
-
   // ===== 每日登入 =====
   if (!user.tasks.daily.login) {
     user.tasks.daily.login = true;
