@@ -133,8 +133,6 @@ app.post('/me', async (req,res)=>{
 app.post('/click', async (req,res)=>{
   const user = await getUser(req.body.telegramId);
 
-  resetDailyTasks(user);
-
   if(Date.now()-user.lastClick < 3000){
     return res.json({msg:'⏳ 點擊過快', balance:user.balance});
   }
