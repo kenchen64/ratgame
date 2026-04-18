@@ -368,7 +368,7 @@ bot.start(async (ctx) => {
         const inviter = await User.findOne({ telegramId: ref });
 
         if (inviter) {
-          inviter.balance += 20;
+          inviter.balance += 20; //獎勵
           inviter.inviteCount = (inviter.inviteCount || 0) + 1;
 
           // 👉 任務進度（避免 undefined🔥）
@@ -437,9 +437,11 @@ bot.hears('📋 任務', async ctx => {
 🖱 總點擊: ${user.tasks.achievement.totalClick}
 ⚔️ 總偷取: ${user.tasks.achievement.totalSteal}
 👥 邀請: ${user.tasks.achievement.totalInvite}
+
 💰 完成獎勵：
 每日 +50 🧀
-每週 +200 🧀`
+每週 +200 🧀
+邀請每人 +20 🧀`
   );
 });
 
