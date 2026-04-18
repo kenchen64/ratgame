@@ -127,8 +127,7 @@ app.post('/click', async (req,res)=>{
 
   await user.save();
 
-  ctx.reply(`🧀 ${user.balance}📋 每日任務進度點擊: ${user.tasks.clickCount}/30` );
-  res.json(user);
+  ctx.reply(`🧀 ${user.balance} 📋 每日任務進度點擊: ${user.tasks.clickCount}/30` );
 });
 
 // 每日任務
