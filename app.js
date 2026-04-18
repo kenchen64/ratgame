@@ -338,7 +338,7 @@ bot.hears('📋 任務', async ctx => {
 `【每日任務】
 🖱 點擊: ${user.tasks.daily.click}/30
 ⚔️ 偷起司: ${user.tasks.daily.steal}/10
-🎮 登入: ${user.tasks.daily.login ? '✅成翁' : '❌失敗'}
+🎮 登入: ${user.tasks.daily.login ? '✅成功' : '❌失敗'}
 
 【每週任務】
 🖱 點擊: ${user.tasks.weekly.click}/200
@@ -353,7 +353,7 @@ bot.hears('📋 任務', async ctx => {
 
 // ===== 偷起司 =====
 bot.hears('⚔️ 偷起司', ctx=>{
-  ctx.reply('輸入:\n/steal (隨機)\n/steal @username\n/steal id');
+  ctx.reply('輸入:\n/steal (隨機)\n/steal username\n/steal id');
 });
 bot.command('steal', async ctx=>{
   try{
