@@ -25,10 +25,15 @@ const User = mongoose.models.User || mongoose.model('User',{
   wallet:String,
   banned:{type:Boolean,default:false},
   withdrawing:{type:Boolean,default:false},
-  tasks: {
-  dailyClick: { type:Number, default:0 },
-  lastTaskAt: { type:Number, default:0 }
-  },
+tasks: {
+  loginStreak: { type: Number, default: 0 },
+  lastLoginAt: { type: Number, default: 0 },
+
+  clickCount: { type: Number, default: 0 },
+  stealCount: { type: Number, default: 0 },
+
+  lastResetAt: { type: Number, default: 0 }
+}
 });
 
 // ===== Web3（雙RPC防掉線🔥）=====
@@ -52,7 +57,25 @@ async function getUser(id, username='user'){
   }
   return u;
 }
+function resetDailyTasks(user) {
+  const today = new Date().setHours(0,0,0,0);
 
+  if (!user.tasks) {
+    user.tasks = {
+      loginStreak: 0,
+      lastLoginAt: 0,
+      clickCount: 0,
+      stealCount: 0,
+      lastResetAt: 0
+    };
+  }
+
+  if (user.tasks.lastResetAt < today) {
+    user.tasks.clickCount = 0;
+    user.tasks.stealCount = 0;
+    user.tasks.lastResetAt = today;
+  }
+}
 // ===== 黑洞（修正不為0🔥）=====
 app.get('/blackhole', async (req,res)=>{
   try{
@@ -97,9 +120,14 @@ app.post('/click', async (req,res)=>{
   }
 
   user.lastClick = Date.now();
-  user.balance++;
+  user.balance +=1 ;
+  
+  // 👉 任務進度
+  user.tasks.clickCount += 1;
+
   await user.save();
 
+  ctx.reply(`🧀 ${user.balance}📋 每日任務進度點擊: ${user.tasks.clickCount}/30` );
   res.json(user);
 });
 
@@ -191,12 +219,13 @@ app.post('/steal', async (req,res)=>{
     target.balance -= amount;
     user.balance += amount;
     user.steal += amount;
-
+    attacker.tasks.stealCount += 1;
+    
     await target.save();
     await user.save();
 
     res.json({
-      msg:`🐭 成功偷到 ${target.username}\n+${amount} 🧀`
+      msg:`🐭 成功偷到 ${target.username}\n+${amount} 🧀` 📋 任務進度: ${attacker.tasks.stealCount}/30`
     });
 
   }catch(e){
@@ -350,8 +379,25 @@ const menu = Markup.keyboard([
 const state = {};
 
 // ===== 開始 =====
-bot.start(ctx=>{
-  ctx.reply('🐭 遊戲開始', menu);
+bot.start(async (ctx) => {
+  delete state[ctx.from.id];
+
+  let user = await getUser(ctx.from.id, ctx.from.username);
+
+  resetDailyTasks(user);
+
+  const now = Date.now();
+  const yesterday = now - 86400000;
+
+  if (!user.tasks.lastLoginAt || user.tasks.lastLoginAt < yesterday) {
+    user.tasks.loginStreak += 1;
+  }
+
+  user.tasks.lastLoginAt = now;
+
+  await user.save();
+
+  ctx.reply('🐭 歡迎回來', menu);
 });
 
 
@@ -375,29 +421,20 @@ bot.hears('🖱 點擊赚起司', async ctx=>{
 bot.hears('🎁 每日任務', async ctx => {
   delete state[ctx.from.id]; // 👉 清 FSM
 
-  try {
-    // 👉 先領獎
-    const { data } = await axios.post(`http://localhost:${PORT}/daily`, {
-      telegramId: ctx.from.id
-    });
 
-    // 👉 再顯示進度
-    const me = await axios.post(`http://localhost:${PORT}/me`, {
-      telegramId: ctx.from.id
-    });
+  const user = await getUser(ctx.from.id);
 
-    const progress = me.data.tasks?.dailyClick || 0;
+  resetDailyTasks(user);
 
-    ctx.reply(
-`${data.msg}
+  await user.save();
 
-📋 任務進度
-進度: ${progress}/50`
-    );
+  ctx.reply(
+`📋 每日任務
 
-  } catch (err) {
-    ctx.reply('❌ 任務錯誤');
-  }
+🔥 連續登入: ${user.tasks.loginStreak}/7
+🖱 點擊任務: ${user.tasks.clickCount}/30
+⚔️ 偷起司: ${user.tasks.stealCount}/30`
+  );
 });
 
 // ===== 偷起司 =====
