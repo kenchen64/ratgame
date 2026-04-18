@@ -24,15 +24,24 @@ const User = mongoose.models.User || mongoose.model('User',{
   lastClick:{type:Number,default:0},
   wallet:String,
   banned:{type:Boolean,default:false},
-  withdrawing:{type:Boolean,default:false},
 tasks: {
-  loginStreak: { type: Number, default: 0 },
-  lastLoginAt: { type: Number, default: 0 },
-
-  clickCount: { type: Number, default: 0 },
-  stealCount: { type: Number, default: 0 },
-
-  lastResetAt: { type: Number, default: 0 }
+  daily: {
+    click: { type: Number, default: 0 },
+    steal: { type: Number, default: 0 },
+    login: { type: Boolean, default: false },
+    lastReset: { type: Number, default: 0 }
+  },
+  weekly: {
+    click: { type: Number, default: 0 },
+    steal: { type: Number, default: 0 },
+    loginDays: { type: Number, default: 0 },
+    lastReset: { type: Number, default: 0 }
+  },
+  achievement: {
+    totalClick: { type: Number, default: 0 },
+    totalSteal: { type: Number, default: 0 }
+  }
+}
 }
 });
 
@@ -57,23 +66,33 @@ async function getUser(id, username='user'){
   }
   return u;
 }
-function resetDailyTasks(user) {
-  const today = new Date().setHours(0,0,0,0);
+// ===== 任務重置系統 =====
+function resetTasks(user) {
+  const now = Date.now();
 
-  if (!user.tasks) {
-    user.tasks = {
-      loginStreak: 0,
-      lastLoginAt: 0,
-      clickCount: 0,
-      stealCount: 0,
-      lastResetAt: 0
+  const today = new Date().setHours(0,0,0,0);
+  const weekStart = new Date();
+  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+  weekStart.setHours(0,0,0,0);
+
+  // ===== Daily =====
+  if (!user.tasks.daily.lastReset || user.tasks.daily.lastReset < today) {
+    user.tasks.daily = {
+      click: 0,
+      steal: 0,
+      login: false,
+      lastReset: today
     };
   }
 
-  if (user.tasks.lastResetAt < today) {
-    user.tasks.clickCount = 0;
-    user.tasks.stealCount = 0;
-    user.tasks.lastResetAt = today;
+  // ===== Weekly =====
+  if (!user.tasks.weekly.lastReset || user.tasks.weekly.lastReset < weekStart) {
+    user.tasks.weekly = {
+      click: 0,
+      steal: 0,
+      loginDays: 0,
+      lastReset: weekStart
+    };
   }
 }
 // ===== 黑洞（修正不為0🔥）=====
@@ -125,7 +144,9 @@ app.post('/click', async (req,res)=>{
   user.balance += 1 ;
   
   // 👉 任務進度
-  user.tasks.clickCount += 1;
+user.tasks.daily.click += 1;
+user.tasks.weekly.click += 1;
+user.tasks.achievement.totalClick += 1;
 
   await user.save();
 
@@ -179,13 +200,15 @@ app.post('/steal', async (req,res)=>{
     target.balance -= amount;
     user.balance += amount;
     user.steal += amount;
-    attacker.tasks.stealCount += 1;
+   attacker.tasks.daily.steal += 1;
+   attacker.tasks.weekly.steal += 1;
+   attacker.tasks.achievement.totalSteal += 1;
     
     await target.save();
     await user.save();
 
     return res.json({
-      msg:`🐭 成功偷到 ${target.username}\n+${amount} 🧀\n ⚔️ 每日任務進度偷起司: ${user.tasks.stealCount}/30`
+      msg:`🐭 成功偷到 ${target.username}\n+${amount} 🧀\n ⚔️ 任務進度: ${attacker.tasks.daily.steal}/30`
     });
 
   }catch(e){
@@ -242,67 +265,6 @@ app.post('/bind', async (req,res)=>{
   }
 });
 
-// 提領
-app.post('/withdraw', async (req,res)=>{
-  try{
-    const user = await User.findOne({telegramId:req.body.telegramId});
-
-    if(!user) return res.json({msg:'❌ 無玩家'});
-
-    if(!user.wallet)
-      return res.json({msg:'❌ 未綁定錢包'});
-
-    if(user.balance < 100)
-      return res.json({msg:'❌ 最低100'});
-
-    if(user.withdrawing)
-      return res.json({msg:'⏳ 提領處理中'});
-
-    // ===== 鎖定（避免重複提領）=====
-    user.withdrawing = true;
-
-    const amount = user.balance;
-    user.balance = 0;
-
-    await user.save();
-
-    try{
-      // ===== 取得 decimals =====
-      const decimals = await contract.decimals();
-      const value = ethers.parseUnits(amount.toString(), decimals);
-
-      // ===== 發送交易 =====
-      const tx = await contract.transfer(user.wallet, value);
-
-      // ===== 等待上鏈確認🔥 =====
-      await tx.wait();
-
-      user.withdrawing = false;
-      await user.save();
-
-      return res.json({
-        msg:`✅ 提領成功\nTx: ${tx.hash}`
-      });
-
-    }catch(err){
-      // ===== 失敗回滾🔥 =====
-      user.balance += amount;
-      user.withdrawing = false;
-      await user.save();
-
-      console.log('withdraw error:', err.message);
-
-      return res.json({
-        msg:'❌ 提領失敗'
-      });
-    }
-
-  }catch(e){
-    console.log(e);
-    res.json({msg:'❌ 系統錯誤'});
-  }
-});
-
 // 排行榜
 app.get('/rank', async (req,res)=>{
   try{
@@ -328,11 +290,10 @@ app.get('/rank', async (req,res)=>{
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
 const menu = Markup.keyboard([
-['🎮 開始遊戲','🎁 每日任務'],  
-['🖱 點擊赚起司',],
+['🎮 開始遊戲','📋 任務'],  
+['🖱 點擊赚起司','🏆 排行榜'],
 ['⚔️ 偷起司','🛡️ 防護盾'],
 ['🌌 黑洞總量','🔗 綁定錢包'],
-['💸 提領','🏆 排行榜'],
 ]).resize();
 
 // ===== FSM 狀態 =====
@@ -342,18 +303,15 @@ const state = {};
 bot.start(async (ctx) => {
   delete state[ctx.from.id];
 
-  let user = await getUser(ctx.from.id, ctx.from.username);
+  const user = await getUser(ctx.from.id, ctx.from.username);
 
-  resetDailyTasks(user);
+  resetTasks(user);
 
-  const now = Date.now();
-  const yesterday = now - 86400000;
-
-  if (!user.tasks.lastLoginAt || user.tasks.lastLoginAt < yesterday) {
-    user.tasks.loginStreak += 1;
+  // ===== 每日登入 =====
+  if (!user.tasks.daily.login) {
+    user.tasks.daily.login = true;
+    user.tasks.weekly.loginDays += 1;
   }
-
-  user.tasks.lastLoginAt = now;
 
   await user.save();
 
@@ -375,26 +333,34 @@ bot.hears('🖱 點擊赚起司', async ctx=>{
 
   ctx.reply(`🆔Telegram: ${ctx.from.id}\n
   👤用戶名: ${ctx.from.username}\n🧀餘額: ${data.balance}\n
-  📋 每日任務進度點擊: ${user.tasks.clickCount}/30`);
+  📋 任務進度: ${user.tasks.daily.click}/30`);
 });
 
 // ===== 每日任務 =====
-bot.hears('🎁 每日任務', async ctx => {
-  delete state[ctx.from.id]; // 👉 清 FSM
-
+bot.hears('📋 任務', async ctx => {
+  delete state[ctx.from.id];
 
   const user = await getUser(ctx.from.id);
 
-  resetDailyTasks(user);
-
+  resetTasks(user);
   await user.save();
 
   ctx.reply(
-`📋 每日任務
+`📋 任務系統
 
-🔥 連續登入: ${user.tasks.loginStreak}/7
-🖱 點擊任務: ${user.tasks.clickCount}/30
-⚔️ 偷起司: ${user.tasks.stealCount}/30`
+【每日任務】
+🖱 點擊: ${user.tasks.daily.click}/30
+⚔️ 偷起司: ${user.tasks.daily.steal}/10
+🎮 登入: ${user.tasks.daily.login ? '✅' : '❌'}
+
+【每週任務】
+🖱 點擊: ${user.tasks.weekly.click}/200
+⚔️ 偷起司: ${user.tasks.weekly.steal}/50
+📅 登入天數: ${user.tasks.weekly.loginDays}/7
+
+【成就】
+🏆 總點擊: ${user.tasks.achievement.totalClick}
+💰 總偷取: ${user.tasks.achievement.totalSteal}`
   );
 });
 
@@ -472,7 +438,7 @@ bot.on('text', async (ctx, next)=>{
 
   const s = state[ctx.from.id];
 
-  const isMenu = ['🎮','🖱','⚔️','🛡️','🌌','🔗','💸','🏆','🎁']
+  const isMenu = ['🎮','🖱','⚔️','🛡️','🌌','🔗','🏆','📋']
     .some(x=>text.includes(x));
 
   if(isMenu){
@@ -516,17 +482,6 @@ bot.on('text', async (ctx, next)=>{
   }
 
   return next();
-});
-
-// ===== 提領 =====
-bot.hears('💸 提領', async ctx=>{
-  delete state[ctx.from.id];
-
-  const {data} = await axios.post(`http://localhost:${PORT}/withdraw`,{
-    telegramId:ctx.from.id
-  });
-
-  ctx.reply(data.msg);
 });
 
 // ===== 排行榜 =====
