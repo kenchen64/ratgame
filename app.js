@@ -185,7 +185,7 @@ app.post('/steal', async (req,res)=>{
     await user.save();
 
     return res.json({
-      msg:`🐭 成功偷到 ${target.username}\n+${amount} 🧀 📋 任務進度: ${attacker.tasks.stealCount}/30`
+      msg:`🐭 成功偷到 ${target.username}\n+${amount} 🧀\n ⚔️ 每日任務進度偷起司: ${user.tasks.stealCount}/30`
     });
 
   }catch(e){
@@ -400,7 +400,8 @@ bot.hears('🎁 每日任務', async ctx => {
 
 // ===== 偷起司 =====
 bot.hears('⚔️ 偷起司', ctx=>{
-  ctx.reply('輸入:\n/steal (隨機)\n/steal @username\n/steal id');
+  ctx.reply('輸入:\n/steal (隨機)\n/steal @username\n/steal id\n
+  ⚔️ 每日任務進度偷起司: ${user.tasks.stealCount}/30');
 });
 bot.command('steal', async ctx=>{
   try{
