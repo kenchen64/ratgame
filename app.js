@@ -129,13 +129,7 @@ app.post('/click', async (req,res)=>{
 
   await user.save();
 
-  ctx.reply(
-`🧀 ${user.balance}
-
-📋 每日任務進度
-點擊: ${user.tasks.clickCount}/30`
-  );
-});
+  res.json(user);
 
 // 偷取 隨機或指定
 app.post('/steal', async (req,res)=>{
@@ -379,7 +373,9 @@ bot.hears('🖱 點擊赚起司', async ctx=>{
 
   if(data.msg) return ctx.reply(data.msg);
 
-  ctx.reply(`🆔Telegram: ${ctx.from.id}\n👤用戶名: ${ctx.from.username}\n🧀餘額: ${data.balance}`);
+  ctx.reply(`🆔Telegram: ${ctx.from.id}\n
+  👤用戶名: ${ctx.from.username}\n🧀餘額: ${data.balance}\n
+  📋 每日任務進度點擊: ${user.tasks.clickCount}/30`);
 });
 
 // ===== 每日任務 =====
