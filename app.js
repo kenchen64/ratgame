@@ -116,7 +116,7 @@ app.post('/daily', async (req,res)=>{
   }
 
 user.tasks.lastDailyAt = Date.now();
-user.tasks.dailyClick = (user.tasks.dailyClick || 0) = 1; //累積次數+1
+user.tasks.dailyClick = (user.tasks.dailyClick || 0) + 1; //累積次數+1
 // 👉 任務獎勵
   let rewardMsg = "每日獎勵 +10 🧀";
   user.balance += 10;
