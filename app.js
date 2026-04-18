@@ -73,7 +73,6 @@ function resetTasks(user) {
   const weekStart = new Date();
   weekStart.setDate(weekStart.getDate() - weekStart.getDay());
   weekStart.setHours(0,0,0,0);
-
   // ===== Daily =====
   if (!user.tasks.daily.lastReset || user.tasks.daily.lastReset < today) {
     user.tasks.daily = {
@@ -83,7 +82,6 @@ function resetTasks(user) {
       lastReset: today
     };
   }
-
   // ===== Weekly =====
   if (!user.tasks.weekly.lastReset || user.tasks.weekly.lastReset < weekStart) {
     user.tasks.weekly = {
@@ -98,23 +96,18 @@ function resetTasks(user) {
 app.get('/blackhole', async (req,res)=>{
   try{
     const provider = await getProvider();
-
     const contract = new ethers.Contract(
       process.env.TOKEN_ADDRESS,
       ["function balanceOf(address) view returns(uint256)"],
       provider
     );
-
     const DEAD = "0x000000000000000000000000000000000000dead";
-
     const raw = await contract.balanceOf(DEAD);
 
     if(raw === 0n){
       return res.json({total:"0"});
     }
-
     const total = ethers.formatUnits(raw, 18);
-
     res.json({total});
 
   }catch(e){
@@ -312,7 +305,7 @@ bot.start(async (ctx) => {
 
   await user.save();
 
-  ctx.reply('🐭 歡迎回來', menu);
+  ctx.reply('🐭 歡迎回來，登入成功', menu);
 });
 
 // ===== 開始遊戲 =====
@@ -328,9 +321,8 @@ bot.hears('🖱 點擊赚起司', async ctx=>{
   const user = await getUser(ctx.from.id);
   if(data.msg) return ctx.reply(data.msg);
 
-  ctx.reply(`🆔Telegram: ${ctx.from.id}\n
-  👤用戶名: ${ctx.from.username}\n🧀餘額: ${data.balance}\n
-  📋 任務進度: ${user.tasks.daily.click}/30`);
+  ctx.reply(`🆔Telegram: ${ctx.from.id}\n👤用戶名: ${ctx.from.username}\n🧀餘額: ${data.balance}\n
+📋 任務進度: ${user.tasks.daily.click}/30`);
 });
 
 // ===== 每日任務 =====
@@ -343,12 +335,10 @@ bot.hears('📋 任務', async ctx => {
   await user.save();
 
   ctx.reply(
-`📋 任務系統
-
-【每日任務】
+`【每日任務】
 🖱 點擊: ${user.tasks.daily.click}/30
 ⚔️ 偷起司: ${user.tasks.daily.steal}/10
-🎮 登入: ${user.tasks.daily.login ? '✅' : '❌'}
+🎮 登入: ${user.tasks.daily.login ? '✅成翁' : '❌失敗'}
 
 【每週任務】
 🖱 點擊: ${user.tasks.weekly.click}/200
@@ -356,8 +346,8 @@ bot.hears('📋 任務', async ctx => {
 📅 登入天數: ${user.tasks.weekly.loginDays}/7
 
 【成就】
-🏆 總點擊: ${user.tasks.achievement.totalClick}
-💰 總偷取: ${user.tasks.achievement.totalSteal}`
+🖱 總點擊: ${user.tasks.achievement.totalClick}
+⚔️ 總偷取: ${user.tasks.achievement.totalSteal}`
   );
 });
 
