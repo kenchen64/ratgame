@@ -344,34 +344,55 @@ const state = {};
 
 // ===== 開始 =====
 bot.start(async (ctx) => {
-  delete state[ctx.from.id];
+  try {
+    // ✅ 清 FSM（避免卡住）
+    delete state[ctx.from.id];
 
-  const user = await getUser(ctx.from.id, ctx.from.username);
+    // ✅ 解析 /start 參數（關鍵修正🔥）
+    const text = ctx.message?.text || '';
+    const args = text.split(' ');
+    const ref = args[1] ? args[1].trim() : null;
 
-  // ===== 每日登入 =====
-  if (!user.tasks.daily.login) {
-    user.tasks.daily.login = true;
-    user.tasks.weekly.loginDays += 1;
+    let user = await User.findOne({ telegramId: ctx.from.id });
+
+    // ===== 新用戶 =====
+    if (!user) {
+      user = await User.create({
+        telegramId: ctx.from.id,
+        username: ctx.from.username || `user_${ctx.from.id}`,
+        referrer: ref || null
+      });
+
+      // ===== 邀請獎勵（修正 ref 未定義問題🔥）=====
+      if (ref && ref !== String(ctx.from.id)) {
+        const inviter = await User.findOne({ telegramId: ref });
+
+        if (inviter) {
+          inviter.balance += 20;
+          inviter.inviteCount = (inviter.inviteCount || 0) + 1;
+
+          // 👉 任務進度（避免 undefined🔥）
+          if (!inviter.tasks) inviter.tasks = {};
+          if (!inviter.tasks.daily) inviter.tasks.daily = {};
+          if (!inviter.tasks.weekly) inviter.tasks.weekly = {};
+          if (!inviter.tasks.achievement) inviter.tasks.achievement = {};
+
+          inviter.tasks.daily.invite = (inviter.tasks.daily.invite || 0) + 1;
+          inviter.tasks.weekly.invite = (inviter.tasks.weekly.invite || 0) + 1;
+          inviter.tasks.achievement.totalInvite =
+            (inviter.tasks.achievement.totalInvite || 0) + 1;
+
+          await inviter.save();
+        }
+      }
+    }
+
+    return ctx.reply('🐭 歡迎回來，登入成功', menu);
+
+  } catch (err) {
+    console.log('/start error:', err);
+    return ctx.reply('❌ 系統錯誤');
   }
-
-  await user.save();
-// 邀請新用戶建立後
-if (ref && ref !== String(ctx.from.id)) {
-  const inviter = await User.findOne({ telegramId: ref });
-
-  if (inviter) {
-    inviter.balance += 20;
-    inviter.inviteCount += 1;
-
-    // 👉 任務進度
-    inviter.tasks.daily.invite += 1;
-    inviter.tasks.weekly.invite += 1;
-    inviter.tasks.achievement.totalInvite += 1;
-
-    await inviter.save();
-  }
-}
-  ctx.reply('🐭 歡迎回來，登入成功', menu);
 });
 
 // ===== 開始遊戲 =====
