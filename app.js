@@ -24,22 +24,29 @@ const User = mongoose.models.User || mongoose.model('User',{
   lastClick:{type:Number,default:0},
   wallet:String,
   banned:{type:Boolean,default:false},
+inviteCount: { type:Number, default:0 },
+
 tasks: {
   daily: {
-    click: { type: Number, default: 0 },
-    steal: { type: Number, default: 0 },
-    login: { type: Boolean, default: false },
-    lastReset: { type: Number, default: 0 }
+    click: { type:Number, default:0 },
+    steal: { type:Number, default:0 },
+    invite: { type:Number, default:0 },
+    login: { type:Boolean, default:false },
+    rewardClaimed: { type:Boolean, default:false },
+    lastReset: { type:Number, default:0 }
   },
   weekly: {
-    click: { type: Number, default: 0 },
-    steal: { type: Number, default: 0 },
-    loginDays: { type: Number, default: 0 },
-    lastReset: { type: Number, default: 0 }
+    click: { type:Number, default:0 },
+    steal: { type:Number, default:0 },
+    invite: { type:Number, default:0 },
+    loginDays: { type:Number, default:0 },
+    rewardClaimed: { type:Boolean, default:false },
+    lastReset: { type:Number, default:0 }
   },
   achievement: {
-    totalClick: { type: Number, default: 0 },
-    totalSteal: { type: Number, default: 0 }
+    totalClick: { type:Number, default:0 },
+    totalSteal: { type:Number, default:0 },
+    totalInvite: { type:Number, default:0 }
   }
 }
 });
@@ -65,54 +72,102 @@ async function getUser(id, username='user'){
   }
   return u;
 }
-// ===== 任務重置系統 =====
-function resetTasks(user) {
-  const now = Date.now();
+// ===== 任務完成發獎 =====
+function checkTaskReward(user){
+  let reward = 0;
 
-  const today = new Date().setHours(0,0,0,0);
-  const weekStart = new Date();
-  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-  weekStart.setHours(0,0,0,0);
-  // ===== Daily =====
-  if (!user.tasks.daily.lastReset || user.tasks.daily.lastReset < today) {
-    user.tasks.daily = {
-      click: 0,
-      steal: 0,
-      login: false,
-      lastReset: today
-    };
+  // ===== 每日 =====
+  if(!user.tasks.daily.rewardClaimed){
+    if(
+      user.tasks.daily.click >= 30 &&
+      user.tasks.daily.steal >= 10 &&
+      user.tasks.daily.invite >= 1 &&
+      user.tasks.daily.login
+    ){
+      reward += 50;
+      user.tasks.daily.rewardClaimed = true;
+    }
   }
-  // ===== Weekly =====
-  if (!user.tasks.weekly.lastReset || user.tasks.weekly.lastReset < weekStart) {
-    user.tasks.weekly = {
-      click: 0,
-      steal: 0,
-      loginDays: 0,
-      lastReset: weekStart
-    };
+
+  // ===== 每週 =====
+  if(!user.tasks.weekly.rewardClaimed){
+    if(
+      user.tasks.weekly.click >= 200 &&
+      user.tasks.weekly.steal >= 50 &&
+      user.tasks.weekly.invite >= 5 &&
+      user.tasks.weekly.loginDays >= 7
+    ){
+      reward += 200;
+      user.tasks.weekly.rewardClaimed = true;
+    }
   }
+
+  user.balance += reward;
+
+  return reward;
 }
 // ===== 黑洞（修正不為0🔥）=====
-app.get('/blackhole', async (req,res)=>{
-  try{
-    const provider = await getProvider();
+app.get('/blackhole', async (req, res) => {
+  try {
+    const DEAD = "0x000000000000000000000000000000000000dead";
+
     const contract = new ethers.Contract(
       process.env.TOKEN_ADDRESS,
-      ["function balanceOf(address) view returns(uint256)"],
+      [
+        "function balanceOf(address) view returns(uint256)",
+        "function totalSupply() view returns(uint256)"
+      ],
       provider
     );
-    const DEAD = "0x000000000000000000000000000000000000dead";
-    const raw = await contract.balanceOf(DEAD);
 
-    if(raw === 0n){
-      return res.json({total:"0"});
+    // ===== 鏈上資料 =====
+    const [deadRaw, supplyRaw] = await Promise.all([
+      contract.balanceOf(DEAD),
+      contract.totalSupply()
+    ]);
+
+    const dead = Number(ethers.formatUnits(deadRaw, 18));
+    const supply = Number(ethers.formatUnits(supplyRaw, 18));
+    const remaining = supply - dead;
+
+    // ===== CoinGecko 幣價🔥 =====
+    let price = 0;
+
+    try {
+      const cg = await axios.get(
+        `https://api.coingecko.com/api/v3/simple/token_price/binance-smart-chain`,
+        {
+          params: {
+            contract_addresses: process.env.TOKEN_ADDRESS,
+            vs_currencies: 'usd'
+          }
+        }
+      );
+
+      const addr = process.env.TOKEN_ADDRESS.toLowerCase();
+
+      if (cg.data[addr]) {
+        price = cg.data[addr].usd || 0;
+      }
+
+    } catch (e) {
+      console.log('CoinGecko error:', e.message);
+      price = 0; // fallback
     }
-    const total = ethers.formatUnits(raw, 18);
-    res.json({total});
 
-  }catch(e){
+    res.json({
+      dead,
+      remaining,
+      price
+    });
+
+  } catch (e) {
     console.log('blackhole error:', e.message);
-    res.json({total:"讀取失敗"});
+    res.json({
+      dead: 0,
+      remaining: 0,
+      price: 0
+    });
   }
 });
 
@@ -137,7 +192,7 @@ app.post('/click', async (req,res)=>{
 user.tasks.daily.click += 1;
 user.tasks.weekly.click += 1;
 user.tasks.achievement.totalClick += 1;
-
+const reward = checkTaskReward(user);
   await user.save();
 
   res.json(user);
@@ -193,7 +248,7 @@ app.post('/steal', async (req,res)=>{
    attacker.tasks.daily.steal += 1;
    attacker.tasks.weekly.steal += 1;
    attacker.tasks.achievement.totalSteal += 1;
-    
+    const reward = checkTaskReward(attacker);
     await target.save();
     await user.save();
 
@@ -258,21 +313,19 @@ app.post('/bind', async (req,res)=>{
 // 排行榜
 app.get('/rank', async (req,res)=>{
   try{
-    const topClick = await User.find({balance:{$gt:0}})
-      .sort({balance:-1})
-      .limit(5);
+    const topClick = await User.find({balance:{$gt:0}}).sort({balance:-1}).limit(5);
 
-    const topSteal = await User.find({steal:{$gt:0}})
-      .sort({steal:-1})
-      .limit(5);
+    const topSteal = await User.find({steal:{$gt:0}}).sort({steal:-1}).limit(5);
+    const inviteTop = await User.find().sort({inviteCount:-1}).limit(5);
 
     res.json({
       topClick: topClick || [],
-      topSteal: topSteal || []
+      topSteal: topSteal || [],
+      inviteTop: inviteTop || [],
     });
 
   }catch(e){
-    res.json({topClick:[], topSteal:[]});
+    res.json({topClick:[], topSteal:[], inviteTop:[]});
   }
 });
 
@@ -304,7 +357,22 @@ bot.start(async (ctx) => {
   }
 
   await user.save();
+// 邀請新用戶建立後
+if (ref && ref !== String(ctx.from.id)) {
+  const inviter = await User.findOne({ telegramId: ref });
 
+  if (inviter) {
+    inviter.balance += 20;
+    inviter.inviteCount += 1;
+
+    // 👉 任務進度
+    inviter.tasks.daily.invite += 1;
+    inviter.tasks.weekly.invite += 1;
+    inviter.tasks.achievement.totalInvite += 1;
+
+    await inviter.save();
+  }
+}
   ctx.reply('🐭 歡迎回來，登入成功', menu);
 });
 
@@ -338,16 +406,22 @@ bot.hears('📋 任務', async ctx => {
 `【每日任務】
 🖱 點擊: ${user.tasks.daily.click}/30
 ⚔️ 偷起司: ${user.tasks.daily.steal}/10
+👥 邀請: ${user.tasks.daily.invite}/1
 🎮 登入: ${user.tasks.daily.login ? '✅成功' : '❌失敗'}
 
 【每週任務】
 🖱 點擊: ${user.tasks.weekly.click}/200
 ⚔️ 偷起司: ${user.tasks.weekly.steal}/50
+👥 邀請: ${user.tasks.weekly.invite}/5
 📅 登入天數: ${user.tasks.weekly.loginDays}/7
 
 【成就】
 🖱 總點擊: ${user.tasks.achievement.totalClick}
-⚔️ 總偷取: ${user.tasks.achievement.totalSteal}`
+⚔️ 總偷取: ${user.tasks.achievement.totalSteal}
+👥 邀請: ${user.tasks.achievement.totalInvite}
+💰 完成獎勵：
+每日 +50 🧀
+每週 +200 🧀`
   );
 });
 
@@ -396,8 +470,15 @@ bot.hears('🛡️ 防護盾', async ctx=>{
 
 // ===== 黑洞 =====
 bot.hears('🌌 黑洞總量', async ctx=>{
+  delete state[ctx.from.id];
+
   const {data} = await axios.get(`http://localhost:${PORT}/blackhole`);
-  ctx.reply(`🌌 ${data.total}`);
+
+  ctx.reply(
+`🌌 黑洞銷毀: ${data.dead}
+💰 幣價: $${data.price}
+📦 剩餘供應: ${data.remaining}`
+  );
 });
 
 // ===== 綁定 =====
@@ -486,6 +567,12 @@ bot.hears('🏆 排行榜', async ctx=>{
   data.topSteal.forEach((u,i)=>{
     msg+=`${i+1}. 👤:${u.username} 🧀:${u.balance}\n`;
   });
+
+  msg+='\n👥 邀請榜\n';
+  data.inviteTop.forEach((u,i)=>{
+    msg+=`${i+1}. ${u.username} - ${u.inviteCount}\n`;
+  });
+
   ctx.reply(msg);
 });
 
