@@ -564,7 +564,7 @@ bot.on('text', async (ctx, next) => {
     clearState(userId);
     return next();
   }
-  const Menu = ['🎮','🖱','⚔️','🛡️','🐭','🔗','🏆','📋'];
+  const menu = ['🎮','🖱','⚔️','🛡️','🐭','🔗','🏆','📋'];
     if (menu.some(x => text.includes(x))) {
     clearState(userId);
     return next();
