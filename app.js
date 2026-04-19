@@ -356,14 +356,6 @@ bot.on('callback_query', async ctx=>{
       remaining,
       price
     });
-
-    catch (e) {
-    console.log('blackhole error:', e.message);
-    res.json({
-      dead: 0,
-      remaining: 0,
-      price: 0
-    });
       
       return ctx.editMessageText(`🌌 起司黑洞:${dead}/n🐭 鼠重量: $${price}/n🧀 剩餘起司: ${remaining}`,menu());
     }
