@@ -553,25 +553,26 @@ bot.hears('🔗 綁定錢包', async ctx=>{
 // ===== FSM核心🔥 =====
 bot.on('text', async (ctx, next)=>{
   const text = ctx.message.text.trim();
+  const userId = ctx.from.id;
     if (text.startsWith('/')) {
-    delete state[ctx.from.id];
+    delete state[userId];
     return next();
   }
 
-  const s = state[ctx.from.id];
+  const s = state[userId];
 
   const isMenu = ['🎮','🖱','⚔️','🛡️','🐭','🔗','🏆','📋']
     .some(x=>text.includes(x));
 
   if(isMenu){
-    delete state[ctx.from.id];
+    delete state[userId];
     return next();
   }
 
   // ===== 防護盾 =====
-  if(s === 'shield'){
+  if(s === 'WAIT_SHIELD_CONFIRM'){
     if(text === 'n'){
-      delete state[ctx.from.id];
+      delete state[userId];
       return ctx.reply('❌ 已取消');
     }
 
@@ -583,14 +584,14 @@ bot.on('text', async (ctx, next)=>{
       telegramId:ctx.from.id
     });
 
-    delete state[ctx.from.id];
+    delete state[userId];
     return ctx.reply(data.msg);
   }
 
   // ===== 綁定 =====
-  if(s === 'wallet'){
+  if(s === 'WAIT_WALLET'){
     if(!ethers.isAddress(text)){
-      delete state[ctx.from.id];
+      delete state[userId];
       return ctx.reply('❌ 地址錯誤');
     }
 
@@ -599,7 +600,7 @@ bot.on('text', async (ctx, next)=>{
       wallet:text
     });
 
-    delete state[ctx.from.id];
+    delete state[userId];
     return ctx.reply(data.msg);
   }
 
