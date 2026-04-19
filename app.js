@@ -203,7 +203,10 @@ const reward = checkTaskReward(user);
 app.post('/steal', async (req,res)=>{
   try{
     const user = await getUser(req.body.telegramId);
+    const attacker = await getUser(attackerId);
 
+  if(Date.now() - attacker.lastAttack < 30000)
+    return res.json({msg:'⏳ 冷卻中，等等再偷'});
     let target;
 
     if(req.body.target){
@@ -218,7 +221,7 @@ app.post('/steal', async (req,res)=>{
       });
 
       if(!target)
-        return res.json({msg:'❌ 找不到玩家'});
+        return res.json({msg:'❌ 找不到這隻鼠'});
     }
     else{
       const players = await User.find({
@@ -227,7 +230,7 @@ app.post('/steal', async (req,res)=>{
       });
 
       if(players.length === 0)
-        return res.json({msg:'❌ 沒人可偷'});
+        return res.json({msg:'❌ 沒鼠可偷'});
 
       target = players[Math.floor(Math.random()*players.length)];
     }
