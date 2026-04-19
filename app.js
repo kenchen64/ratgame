@@ -357,7 +357,7 @@ bot.on('callback_query', async ctx=>{
       price
     });
 
-  } catch (e) {
+    catch (e) {
     console.log('blackhole error:', e.message);
     res.json({
       dead: 0,
