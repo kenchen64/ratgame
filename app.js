@@ -72,38 +72,6 @@ async function getUser(id, username='user'){
   }
   return u;
 }
-// ===== FSM + Timeout =====
-const state = {};        // { [userId]: 'STATE_NAME' }
-const stateTimer = {};   // { [userId]: timeoutId }
-
-function setState(userId, newState, ctx) {
-  // 清除舊 timer
-  if (stateTimer[userId]) {
-    clearTimeout(stateTimer[userId]);
-    delete stateTimer[userId];
-  }
-
-  state[userId] = newState;
-
-  // 建立 30 秒 timeout
-  stateTimer[userId] = setTimeout(() => {
-    delete state[userId];
-    delete stateTimer[userId];
-
-    // 👉 自動通知（可選）
-    if (ctx) {
-      ctx.telegram.sendMessage(userId, '⌛ 操作逾時，已自動取消');
-    }
-  }, 10000);
-}
-
-function clearState(userId) {
-  if (stateTimer[userId]) {
-    clearTimeout(stateTimer[userId]);
-    delete stateTimer[userId];
-  }
-  delete state[userId];
-}
 // ===== 任務完成發獎 =====
 function checkTaskReward(user){
   let reward = 0;
@@ -375,6 +343,9 @@ const menu = Markup.keyboard([
 ['🐭 鼠經濟','🔗 綁定錢包'],
 ]).resize();
 
+// ===== FSM 狀態 =====
+const state = {};
+
 // ===== 開始 =====
 bot.start(async (ctx) => {
   try {
@@ -506,7 +477,7 @@ bot.hears('🛡️ 防護盾', async ctx=>{
   const {data} = await axios.post(`http://localhost:${PORT}/me`,{
     telegramId:ctx.from.id
   });
-  const user = await getUser(ctx.from.id);
+
   const now = Date.now();
   const remain = data.shieldUntil > now
     ? Math.floor((data.shieldUntil-now)/1000)
@@ -514,12 +485,11 @@ bot.hears('🛡️ 防護盾', async ctx=>{
 
   state[ctx.from.id] = 'shield';
 
-  await ctx.reply(
-`開啟🛡️ 防護盾需要 50 🧀
-剩餘時間: ${remain}s
-是否開啟？(y/n)`
+  ctx.reply(
+`🛡️ 防護盾
+剩餘:${remain}s
+是否開啟(y/n)`
   );
-    setState(user, 'WAIT_SHIELD_CONFIRM', ctx);
 });
 
 // ===== 黑洞 =====
@@ -553,26 +523,25 @@ bot.hears('🔗 綁定錢包', async ctx=>{
 // ===== FSM核心🔥 =====
 bot.on('text', async (ctx, next)=>{
   const text = ctx.message.text.trim();
-  const userId = ctx.from.id;
     if (text.startsWith('/')) {
-    delete state[userId];
+    delete state[ctx.from.id];
     return next();
   }
 
-  const s = state[userId];
+  const s = state[ctx.from.id];
 
   const isMenu = ['🎮','🖱','⚔️','🛡️','🐭','🔗','🏆','📋']
     .some(x=>text.includes(x));
 
   if(isMenu){
-    delete state[userId];
+    delete state[ctx.from.id];
     return next();
   }
 
   // ===== 防護盾 =====
-  if(s === 'WAIT_SHIELD_CONFIRM'){
+  if(s === 'shield'){
     if(text === 'n'){
-      delete state[userId];
+      delete state[ctx.from.id];
       return ctx.reply('❌ 已取消');
     }
 
@@ -584,14 +553,14 @@ bot.on('text', async (ctx, next)=>{
       telegramId:ctx.from.id
     });
 
-    delete state[userId];
+    delete state[ctx.from.id];
     return ctx.reply(data.msg);
   }
 
   // ===== 綁定 =====
-  if(s === 'WAIT_WALLET'){
+  if(s === 'wallet'){
     if(!ethers.isAddress(text)){
-      delete state[userId];
+      delete state[ctx.from.id];
       return ctx.reply('❌ 地址錯誤');
     }
 
@@ -600,7 +569,7 @@ bot.on('text', async (ctx, next)=>{
       wallet:text
     });
 
-    delete state[userId];
+    delete state[ctx.from.id];
     return ctx.reply(data.msg);
   }
 
