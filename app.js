@@ -506,7 +506,7 @@ bot.hears('🛡️ 防護盾', async ctx=>{
   const {data} = await axios.post(`http://localhost:${PORT}/me`,{
     telegramId:ctx.from.id
   });
-  const user = await getUser(userId);
+  const user = await getUser(ctx.from.id);
   const now = Date.now();
   const remain = data.shieldUntil > now
     ? Math.floor((data.shieldUntil-now)/1000)
