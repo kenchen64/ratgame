@@ -344,24 +344,7 @@ bot.on('callback_query', async ctx=>{
       const addr = process.env.TOKEN_ADDRESS.toLowerCase();
       if (cg.data[addr]) {
         price = cg.data[addr].usd || 0;
-      }
-    } catch (e) {
-      console.log('CoinGecko error:', e.message);
-      price = 0; // fallback
-    }
-    res.json({
-      dead,
-      remaining,
-      price
-    });
-  } catch (e) {
-    console.log('blackhole error:', e.message);
-    res.json({
-      dead: 0,
-      remaining: 0,
-      price: 0
-    });
-  }
+  }}
       return ctx.editMessageText(`🌌 起司黑洞:${dead}/n🐭 鼠重量: $${price}/n🧀 剩餘起司: ${remaining}`,menu());
     }
 
