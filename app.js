@@ -72,6 +72,38 @@ async function getUser(id, username='user'){
   }
   return u;
 }
+// ===== FSM + Timeout =====
+const state = {};        // { [userId]: 'STATE_NAME' }
+const stateTimer = {};   // { [userId]: timeoutId }
+
+function setState(userId, newState, ctx) {
+  // 清除舊 timer
+  if (stateTimer[userId]) {
+    clearTimeout(stateTimer[userId]);
+    delete stateTimer[userId];
+  }
+
+  state[userId] = newState;
+
+  // 建立 30 秒 timeout
+  stateTimer[userId] = setTimeout(() => {
+    delete state[userId];
+    delete stateTimer[userId];
+
+    // 👉 自動通知（可選）
+    if (ctx) {
+      ctx.telegram.sendMessage(userId, '⌛ 操作逾時，已自動取消');
+    }
+  }, 10000);
+}
+
+function clearState(userId) {
+  if (stateTimer[userId]) {
+    clearTimeout(stateTimer[userId]);
+    delete stateTimer[userId];
+  }
+  delete state[userId];
+}
 // ===== 任務完成發獎 =====
 function checkTaskReward(user){
   let reward = 0;
@@ -485,11 +517,12 @@ bot.hears('🛡️ 防護盾', async ctx=>{
 
   state[ctx.from.id] = 'shield';
 
-  ctx.reply(
-`🛡️ 防護盾
-剩餘:${remain}s
-是否開啟(y/n)`
+  await ctx.reply(
+'開啟🛡️ 防護盾需要 50 🧀
+剩餘時間: ${remain}s
+是否開啟？(y/n)`
   );
+    setState(telegramId, 'WAIT_SHIELD_CONFIRM', ctx);
 });
 
 // ===== 黑洞 =====
