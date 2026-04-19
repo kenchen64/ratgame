@@ -116,9 +116,9 @@ function setState(ctx, name) {
   FSM.state[userId] = name;
   // 👉 10秒提醒
   FSM.warnTimer[userId] = setTimeout(() => {
-    ctx.telegram.sendMessage(userId, '⏳ 還剩 20 秒...');
+    ctx.telegram.sendMessage(userId, '⏳ 10秒後自動取消...');
   }, 10000);
-  // 👉 30秒 timeout
+  // 👉 20秒 timeout
   FSM.timer[userId] = setTimeout(() => {
     clearState(userId);
     FSM.timeoutCount[userId] = (FSM.timeoutCount[userId] || 0) + 1;
@@ -127,7 +127,7 @@ function setState(ctx, name) {
     if (FSM.timeoutCount[userId] >= 5) {
       ctx.telegram.sendMessage(userId, '🚫 偵測異常操作，請稍後再試');
     }
-  }, 30000);
+  }, 20000);
 }
 // ===== 清除狀態 =====
 function clearState(userId) {
@@ -313,22 +313,16 @@ app.post('/shield', async (req,res)=>{
 app.post('/bind', async (req,res)=>{
   try{
     const { telegramId, wallet } = req.body;
-
     if(!telegramId || !wallet){
       return res.json({msg:'❌ 資料錯誤'});
     }
-
     if(!ethers.isAddress(wallet)){
       return res.json({msg:'❌ 地址錯誤'});
     }
-
     const user = await getUser(telegramId);
-
     user.wallet = wallet;
     await user.save();
-
     res.json({msg:`✅ 已綁定:\n${wallet}`});
-
   }catch(e){
     console.log('bind api error:', e.message);
     res.json({msg:'❌ 綁定失敗'});
@@ -339,16 +333,13 @@ app.post('/bind', async (req,res)=>{
 app.get('/rank', async (req,res)=>{
   try{
     const topClick = await User.find({balance:{$gt:0}}).sort({balance:-1}).limit(5);
-
     const topSteal = await User.find({steal:{$gt:0}}).sort({steal:-1}).limit(5);
     const inviteTop = await User.find().sort({inviteCount:-1}).limit(5);
-
     res.json({
       topClick: topClick || [],
       topSteal: topSteal || [],
       inviteTop: inviteTop || [],
     });
-
   }catch(e){
     res.json({topClick:[], topSteal:[], inviteTop:[]});
   }
@@ -356,7 +347,6 @@ app.get('/rank', async (req,res)=>{
 
 // ===== Bot =====
 const bot = new Telegraf(process.env.BOT_TOKEN);
-
 const menu = Markup.keyboard([
 ['🎮 開始遊戲','📋 任務'],  
 ['🖱 點擊赚起司','🏆 排行榜'],
@@ -393,7 +383,7 @@ bot.start(async (ctx) => {
         const inviter = await User.findOne({ telegramId: ref });
 
         if (inviter) {
-          inviter.balance += 20; //獎勵
+          inviter.balance += 20; //獎勵20
           inviter.inviteCount = (inviter.inviteCount || 0) + 1;
 
           // 👉 任務進度（避免 undefined🔥）
@@ -440,9 +430,7 @@ bot.hears('🖱 點擊赚起司', async ctx=>{
 // ===== 每日任務 =====
 bot.hears('📋 任務', async ctx => {
   delete state[ctx.from.id];
-
   const user = await getUser(ctx.from.id);
-
   await user.save();
 
   ctx.reply(
@@ -483,11 +471,8 @@ bot.command('steal', async ctx=>{
         telegramId: ctx.from.id,
         target: ctx.message.text.split(' ')[1] || null
       });
-
       ctx.reply(data.msg);
-
     }, 1500);
-
   }catch{
     ctx.reply('❌ 錯誤');
   }
@@ -505,12 +490,8 @@ bot.hears('🛡️ 防護盾', async (ctx) => {
 剩餘時間: ${remain}s`,
     {
       reply_markup: {
-        inline_keyboard: [
-          [
-            { text: '✅ 開啟', callback_data: 'shield_yes' },
-            { text: '❌ 取消', callback_data: 'shield_no' }
-          ]
-        ]
+        inline_keyboard: [[{ text: '✅ 開啟', callback_data: 'shield_yes' },
+                           { text: '❌ 取消', callback_data: 'shield_no' }]]
       }
     }
   );
@@ -520,7 +501,6 @@ bot.hears('🛡️ 防護盾', async (ctx) => {
 // ===== 黑洞 =====
 bot.hears('🐭 鼠經濟', async ctx=>{
   delete state[ctx.from.id];
-
   const {data} = await axios.get(`http://localhost:${PORT}/blackhole`);
 
   ctx.reply(
@@ -584,17 +564,13 @@ bot.on('text', async (ctx, next) => {
     clearState(userId);
     return next();
   }
-
   const Menu = ['🎮','🖱','⚔️','🛡️','🐭','🔗','🏆','📋'];
     if (menu.some(x => text.includes(x))) {
     clearState(userId);
     return next();
   }
- 
   const s = getState(userId);
-
   if (!s) return next();
-
   try {
     // ===== 綁定錢包 =====
     if (s === 'WAIT_WALLET') {
@@ -620,9 +596,7 @@ bot.on('text', async (ctx, next) => {
 // ===== 排行榜 =====
 bot.hears('🏆 排行榜', async ctx=>{
   delete state[ctx.from.id];
-
   const {data} = await axios.get(`http://localhost:${PORT}/rank`);
-
   let msg='🏆 點擊榜\n';
   data.topClick.forEach((u,i)=>{
     msg+=`${i+1}. 👤:${u.username} 🧀:${u.balance}\n`;
@@ -637,7 +611,6 @@ bot.hears('🏆 排行榜', async ctx=>{
   data.inviteTop.forEach((u,i)=>{
     msg+=`${i+1}. ${u.username} 👤:${u.inviteCount}\n`;
   });
-
   ctx.reply(msg);
 });
 
