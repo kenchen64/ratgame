@@ -172,8 +172,6 @@ bot.start(async ctx=>{
     const args = text.split(' ');
     const ref = args[1] ? args[1].trim() : null;
 
-    let user = await User.findOne({ telegramId: ctx.from.id });
-
     // ===== 新用戶 =====
     if (!user) {
       user = await User.create({
