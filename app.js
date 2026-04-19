@@ -1,20 +1,16 @@
 require('dotenv').config();
-const express = require('express');
 const mongoose = require('mongoose');
 const axios = require('axios');
-const { Telegraf, Markup } = require('telegraf');
+const { Telegraf } = require('telegraf');
 const { ethers } = require('ethers');
 const bot = new Telegraf(process.env.BOT_TOKEN);
-const app = express();
-app.use(express.json());
 
-// ===== Mongo =====
+// ===== DB =====
 mongoose.connect(process.env.MONGO_URI)
 .then(()=>console.log('✅ Mongo OK'))
 .catch(err=>console.log('❌ Mongo Error', err));
 
-// ===== Model =====
-const User = mongoose.models.User || mongoose.model('User',{
+const userSchema = new mongoose.Schema({
   telegramId:String,
   username:String,
   balance:{type:Number,default:0},
@@ -49,7 +45,7 @@ tasks: {
   }
 }
 });
-
+const User = mongoose.model('User', userSchema);
 async function getUser(id, username){
   let u = await User.findOne({telegramId:id});
   if(!u){
