@@ -506,7 +506,7 @@ bot.hears('🛡️ 防護盾', async ctx=>{
   const {data} = await axios.post(`http://localhost:${PORT}/me`,{
     telegramId:ctx.from.id
   });
-
+  const user = await getUser(userId);
   const now = Date.now();
   const remain = data.shieldUntil > now
     ? Math.floor((data.shieldUntil-now)/1000)
@@ -519,7 +519,7 @@ bot.hears('🛡️ 防護盾', async ctx=>{
 剩餘時間: ${remain}s
 是否開啟？(y/n)`
   );
-    setState(telegramId, 'WAIT_SHIELD_CONFIRM', ctx);
+    setState(user, 'WAIT_SHIELD_CONFIRM', ctx);
 });
 
 // ===== 黑洞 =====
