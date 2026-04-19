@@ -151,14 +151,10 @@ function menu(){
   return {
     reply_markup:{
       inline_keyboard:[
-        [{text:'🎮 開始遊戲',callback_data:'start'}],
-        [{text:'🖱 點擊賺起司',callback_data:'click'}],
-        [{text:'⚔️ 偷起司',callback_data:'steal'}],
-        [{text:'🛡️ 防護盾',callback_data:'shield'}],
-        [{text:'🐭 鼠經濟',callback_data:'blackhole'}],
-        [{text:'🔗 綁定錢包',callback_data:'wallet'}],
-        [{text:'📋 任務',callback_data:'task'}],
-        [{text:'🏆 排行榜',callback_data:'rank'}]
+        [{text:'🎮 開始遊戲',callback_data:'start'}],[{text:'📋 任務',callback_data:'task'}],
+        [{text:'🖱 點擊賺起司',callback_data:'click'}],[{text:'🏆 排行榜',callback_data:'rank'}],
+        [{text:'⚔️ 偷起司',callback_data:'steal'}],[{text:'🛡️ 防護盾',callback_data:'shield'}],
+        [{text:'🐭 鼠經濟',callback_data:'blackhole'}],[{text:'🔗 綁定錢包',callback_data:'wallet'}],
       ]
     }
   };
@@ -168,11 +164,45 @@ function menu(){
 bot.start(async ctx=>{
   clearState(ctx.from.id);
   const user = await getUser(ctx.from.id, ctx.from.username);
-
   user.tasks.daily.login = true;
   await user.save();
+  
+    // ✅ 解析 /start 參數（關鍵修正🔥）
+    const text = ctx.message?.text || '';
+    const args = text.split(' ');
+    const ref = args[1] ? args[1].trim() : null;
 
-  ctx.reply('🐭 Rat Game', menu());
+    let user = await User.findOne({ telegramId: ctx.from.id });
+
+    // ===== 新用戶 =====
+    if (!user) {
+      user = await User.create({
+        telegramId: ctx.from.id,
+        username: ctx.from.username || `user_${ctx.from.id}`,
+        referrer: ref || null
+      });
+      // ===== 邀請獎勵（修正 ref 未定義問題🔥）=====
+      if (ref && ref !== String(ctx.from.id)) {
+        const inviter = await User.findOne({ telegramId: ref });
+
+        if (inviter) {
+          inviter.balance += 20; //獎勵
+          inviter.inviteCount = (inviter.inviteCount || 0) + 1;
+
+          // 👉 任務進度（避免 undefined🔥）
+          if (!inviter.tasks) inviter.tasks = {};
+          if (!inviter.tasks.daily) inviter.tasks.daily = {};
+          if (!inviter.tasks.weekly) inviter.tasks.weekly = {};
+          if (!inviter.tasks.achievement) inviter.tasks.achievement = {};
+
+          inviter.tasks.daily.invite = (inviter.tasks.daily.invite || 0) + 1;
+          inviter.tasks.weekly.invite = (inviter.tasks.weekly.invite || 0) + 1;
+          inviter.tasks.achievement.totalInvite =
+            (inviter.tasks.achievement.totalInvite || 0) + 1;
+
+          await inviter.save();
+
+  ctx.reply('🐭 歡迎回來，登入成功', menu());
 });
 
 // ===== CALLBACK =====
@@ -193,31 +223,33 @@ bot.on('callback_query', async ctx=>{
     if(data==='click'){
       const u = await getUser(id);
 
-      if(Date.now()-u.lastClick<2000){
-        return ctx.answerCbQuery('太快');
+      if(Date.now()-u.lastClick<3000){
+        return ctx.answerCbQuery('⏳ 點擊過快');
       }
 
       u.lastClick=Date.now();
       u.balance+=1;
       u.tasks.daily.click+=1;
-
+      u.tasks.weekly.click += 1;
+      u.tasks.achievement.totalClick += 1;
+      const reward = checkTaskReward(user);
       await u.save();
 
       return ctx.editMessageText(
-`🧀 +1
-餘額:${u.balance}
-任務:${u.tasks.daily.click}/30`,menu());
+`🆔Telegram: ${id}\n👤用戶名: ${username}\n🧀餘額: ${u.balance}\n🧀 +1
+📋 任務進度:${u.tasks.daily.click}/30`,menu());
     }
 
     // ===== 偷 =====
     if(data==='steal'){
       const users = await User.find({telegramId:{$ne:id}});
-      if(users.length===0) return ctx.answerCbQuery('沒人');
+      if(users.length===0) return ctx.answerCbQuery('❌ 沒鼠可偷');
 
       const t = users[Math.floor(Math.random()*users.length)];
       const a = await getUser(id);
-
-      if(t.balance<=0) return ctx.answerCbQuery('對方沒錢');
+      if(Date.now() < target.shieldUntil)
+      return res.json({msg:`🛡️ @${t.username} 有盾`});
+      if(t.balance<=0) return ctx.answerCbQuery('💸 對方沒錢');
 
       const steal = Math.floor(t.balance*0.2);
 
@@ -229,17 +261,17 @@ bot.on('callback_query', async ctx=>{
       await a.save();
 
       return ctx.editMessageText(
-`🐭 偷到 ${steal}
-任務:${a.tasks.daily.steal}/10`,menu());
+`🐭 成功偷到  ${t.username}\n+🧀${steal}
+⚔️ 任務進度:${a.tasks.daily.steal}/10`,menu());
     }
 
     // ===== 護盾 =====
     if(data==='shield'){
       const u = await getUser(id);
-
+      const remain = Math.floor((user.shieldUntil-now)/1000);
       return ctx.editMessageText(
-`🛡️ 開啟護盾?
-消耗50`,{
+`🛡️ 開啟護盾?剩餘:${remain}s
+消耗50🧀`,{
         reply_markup:{
           inline_keyboard:[
             [{text:'✅ 開啟',callback_data:'shield_yes'}],
@@ -252,7 +284,7 @@ bot.on('callback_query', async ctx=>{
     if(data==='shield_yes'){
       const u = await getUser(id);
 
-      if(u.balance<50) return ctx.answerCbQuery('不足');
+      if(u.balance<50) return ctx.answerCbQuery('❌ 🧀不足50');
 
       u.balance-=50;
       const base = u.shieldUntil>Date.now()?u.shieldUntil:Date.now();
@@ -260,7 +292,7 @@ bot.on('callback_query', async ctx=>{
 
       await u.save();
 
-      return ctx.editMessageText('🛡️ 已開啟',menu());
+      return ctx.editMessageText('🛡️ 已開啟\n剩餘:${remain}s',menu());
     }
 
     if(data==='shield_no'){
@@ -279,18 +311,59 @@ bot.on('callback_query', async ctx=>{
 
     // ===== 黑洞 =====
     if(data==='blackhole'){
-      const DEAD="0x000000000000000000000000000000000000dead";
-
+      const provider = await getProvider();
       const contract = new ethers.Contract(
         process.env.TOKEN_ADDRESS,
-        ["function balanceOf(address) view returns(uint256)"],
+        ["function balanceOf(address) view returns(uint256)",
+         "function totalSupply() view returns(uint256)"],
         provider
       );
-
+      const DEAD="0x000000000000000000000000000000000000dead";
       const raw = await contract.balanceOf(DEAD);
+          
+    // ===== 鏈上資料 =====
+      const [deadRaw, supplyRaw] = await Promise.all([
+      contract.balanceOf(DEAD),
+      contract.totalSupply()
+    ]);
       const dead = Number(ethers.formatUnits(raw,18));
+      const supply = Number(ethers.formatUnits(supplyRaw, 18));
+      const remaining = supply - dead;
 
-      return ctx.editMessageText(`🌌 黑洞:${dead}`,menu());
+    // ===== CoinGecko 幣價🔥 =====
+    let price = 0;
+    try {
+      const cg = await axios.get(
+        `https://api.coingecko.com/api/v3/simple/token_price/binance-smart-chain`,
+        {
+          params: {
+            contract_addresses: process.env.TOKEN_ADDRESS,
+            vs_currencies: 'usd'
+          }
+        }
+      );
+      const addr = process.env.TOKEN_ADDRESS.toLowerCase();
+      if (cg.data[addr]) {
+        price = cg.data[addr].usd || 0;
+      }
+    } catch (e) {
+      console.log('CoinGecko error:', e.message);
+      price = 0; // fallback
+    }
+    res.json({
+      dead,
+      remaining,
+      price
+    });
+  } catch (e) {
+    console.log('blackhole error:', e.message);
+    res.json({
+      dead: 0,
+      remaining: 0,
+      price: 0
+    });
+  }
+      return ctx.editMessageText(`🌌 起司黑洞:${dead}/n🐭 鼠重量: $${price}/n🧀 剩餘起司: ${remaining}`,menu());
     }
 
     // ===== 任務 =====
@@ -298,19 +371,49 @@ bot.on('callback_query', async ctx=>{
       const u = await getUser(id);
 
       return ctx.editMessageText(
-`📋 任務
-🖱 ${u.tasks.daily.click}/30
-⚔️ ${u.tasks.daily.steal}/10
-🎮 ${u.tasks.daily.login?'✅':'❌'}`,menu());
+`📋 【每日任務】
+🖱 點擊: ${u.tasks.daily.click}/30
+⚔️ 偷起司: ${u.tasks.daily.steal}/10
+👥 邀請: ${u.tasks.daily.invite}/1
+🎮 登入: ${u.tasks.daily.login?'✅':'❌'}
+
+【每週任務】
+🖱 點擊: ${u.tasks.weekly.click}/200
+⚔️ 偷起司: ${u.tasks.weekly.steal}/50
+👥 邀請: ${u.tasks.weekly.invite}/5
+📅 登入天數: ${u.tasks.weekly.loginDays}/7
+
+【成就】
+🖱 總點擊: ${u.tasks.achievement.totalClick}
+⚔️ 總偷取: ${u.tasks.achievement.totalSteal}
+👥 總邀請: ${u.tasks.achievement.totalInvite}
+
+💰 完成獎勵：
+每日 +50 🧀
+每週 +200 🧀
+邀請每人 +20 🧀`,menu());
     }
 
     // ===== 排行榜 =====
     if(data==='rank'){
       const list = await User.find().sort({balance:-1}).limit(5);
-
-      let msg='🏆\n';
+      const topClick = await User.find({balance:{$gt:0}}).sort({balance:-1}).limit(5);
+      const topSteal = await User.find({steal:{$gt:0}}).sort({steal:-1}).limit(5);
+      const inviteTop = await User.find().sort({inviteCount:-1}).limit(5);
+      
+      let msg='🏆 點擊榜\n';
       list.forEach((u,i)=>{
-        msg+=`${i+1}.${u.username} ${u.balance}\n`;
+        msg+=`${i+1}.👤:${u.username} 🧀:${u.balance}\n`;
+      });
+      
+       msg+='\n⚔️ 偷取榜\n';
+       data.topSteal.forEach((u,i)=>{
+       msg+=`${i+1}. 👤:${u.username} 🧀:${u.balance}\n`;
+      });
+
+      msg+='\n👥 邀請榜\n';
+      data.inviteTop.forEach((u,i)=>{
+      msg+=`${i+1}. ${u.username} 👤:${u.inviteCount}\n`;
       });
 
       return ctx.editMessageText(msg,menu());
