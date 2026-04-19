@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const axios = require('axios');
 const { Telegraf, Markup } = require('telegraf');
 const { ethers } = require('ethers');
-
+const bot = new Telegraf(process.env.BOT_TOKEN);
 const app = express();
 app.use(express.json());
 const PORT = process.env.PORT || 10000;
@@ -51,6 +51,17 @@ tasks: {
 }
 });
 
+async function getUser(id, username){
+  let u = await User.findOne({telegramId:id});
+  if(!u){
+    u = await User.create({
+      telegramId:id,
+      username: username || `user_${id}`
+    });
+  }
+  return u;
+}
+
 // ===== Web3（雙RPC防掉線🔥）=====
 const provider1 = new ethers.JsonRpcProvider(process.env.RPC_URL);
 const provider2 = new ethers.JsonRpcProvider(process.env.RPC_URL_2);
@@ -63,14 +74,6 @@ async function getProvider(){
   }
 }
 
-// ===== 共用 =====
-async function getUser(id, username='user'){
-  let u = await User.findOne({telegramId:id});
-  if(!u){
-    u = await User.create({telegramId:id, username});
-  }
-  return u;
-}
 // ===== 任務完成發獎 =====
 function checkTaskReward(user){
   let reward = 0;
@@ -131,15 +134,13 @@ function setState(ctx, name) {
 }
 // ===== 清除狀態 =====
 function clearState(userId) {
-  if (FSM.timer[userId]) {
-    clearTimeout(FSM.timer[userId]);
+  if (FSM.timer[userId]) {clearTimeout(FSM.timer[userId]);
     delete FSM.timer[userId];
   }
-  if (FSM.warnTimer[userId]) {
-    clearTimeout(FSM.warnTimer[userId]);
+  if (FSM.warnTimer[userId]) {clearTimeout(FSM.warnTimer[userId]);
     delete FSM.warnTimer[userId];
   }
-  delete FSM.state[userId];
+    delete FSM.state[userId];
 }
 // ===== 取得狀態 =====
 function getState(userId) {
