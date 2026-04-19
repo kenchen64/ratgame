@@ -4,6 +4,10 @@ const axios = require('axios');
 const { Telegraf } = require('telegraf');
 const { ethers } = require('ethers');
 const bot = new Telegraf(process.env.BOT_TOKEN);
+const express = require('express');
+const app = express();
+app.use(express.json());
+const PORT = process.env.PORT || 10000;
 
 // ===== DB =====
 mongoose.connect(process.env.MONGO_URI)
@@ -341,6 +345,7 @@ bot.on('text', async ctx=>{
   }
 });
 
-// ===== RUN =====
-bot.launch();
-console.log('🚀 Bot running');
+// ===== Webhook =====
+app.use(bot.webhookCallback('/bot'));
+bot.telegram.setWebhook(process.env.WEBHOOK_URL + '/bot');
+app.listen(PORT, ()=>console.log(`🚀 Running ${PORT}`));
