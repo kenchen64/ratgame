@@ -201,7 +201,7 @@ bot.start(async ctx=>{
           await inviter.save();
          }}}
   ctx.reply('🐭 歡迎回來，登入成功', menu());
-}
+
 });
 
 // ===== CALLBACK =====
