@@ -199,7 +199,7 @@ bot.start(async ctx=>{
             (inviter.tasks.achievement.totalInvite || 0) + 1;
 
           await inviter.save();
-
+         }
   ctx.reply('🐭 歡迎回來，登入成功', menu());
 });
 
