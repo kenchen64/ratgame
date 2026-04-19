@@ -109,8 +109,7 @@ function checkTaskReward(user){
 // ===== 黑洞（修正不為0🔥）=====
 app.get('/blackhole', async (req, res) => {
   try {
-    const DEAD = "0x000000000000000000000000000000000000dead";
-
+    const provider = await getProvider();
     const contract = new ethers.Contract(
       process.env.TOKEN_ADDRESS,
       [
@@ -119,7 +118,9 @@ app.get('/blackhole', async (req, res) => {
       ],
       provider
     );
-
+    const DEAD = "0x000000000000000000000000000000000000dead";
+    const raw = await contract.balanceOf(DEAD);
+    
     // ===== 鏈上資料 =====
     const [deadRaw, supplyRaw] = await Promise.all([
       contract.balanceOf(DEAD),
@@ -496,7 +497,7 @@ bot.hears('🌌 黑洞總量', async ctx=>{
 
   ctx.reply(
 `🌌 黑洞銷毀: ${data.dead}
-💰 幣價: $${data.price}
+💰 鼠重量: $${data.price}
 📦 剩餘供應: ${data.remaining}`
   );
 });
