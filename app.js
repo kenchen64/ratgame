@@ -337,7 +337,7 @@ const menu = Markup.keyboard([
 ['🎮 開始遊戲','📋 任務'],  
 ['🖱 點擊赚起司','🏆 排行榜'],
 ['⚔️ 偷起司','🛡️ 防護盾'],
-['🌌 黑洞總量','🔗 綁定錢包'],
+['🐭 鼠經濟','🔗 綁定錢包'],
 ]).resize();
 
 // ===== FSM 狀態 =====
@@ -437,7 +437,7 @@ bot.hears('📋 任務', async ctx => {
 【成就】
 🖱 總點擊: ${user.tasks.achievement.totalClick}
 ⚔️ 總偷取: ${user.tasks.achievement.totalSteal}
-👥 邀請: ${user.tasks.achievement.totalInvite}
+👥 總邀請: ${user.tasks.achievement.totalInvite}
 
 💰 完成獎勵：
 每日 +50 🧀
@@ -490,15 +490,15 @@ bot.hears('🛡️ 防護盾', async ctx=>{
 });
 
 // ===== 黑洞 =====
-bot.hears('🌌 黑洞總量', async ctx=>{
+bot.hears('🐭 鼠經濟', async ctx=>{
   delete state[ctx.from.id];
 
   const {data} = await axios.get(`http://localhost:${PORT}/blackhole`);
 
   ctx.reply(
-`🌌 黑洞銷毀: ${data.dead}
-💰 鼠重量: $${data.price}
-📦 剩餘供應: ${data.remaining}`
+`🌌 起司黑洞: ${data.dead}
+🐭 鼠重量: $${data.price}
+🧀 剩餘起司: ${data.remaining}`
   );
 });
 
@@ -527,7 +527,7 @@ bot.on('text', async (ctx, next)=>{
 
   const s = state[ctx.from.id];
 
-  const isMenu = ['🎮','🖱','⚔️','🛡️','🌌','🔗','🏆','📋']
+  const isMenu = ['🎮','🖱','⚔️','🛡️','🐭','🔗','🏆','📋']
     .some(x=>text.includes(x));
 
   if(isMenu){
