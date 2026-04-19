@@ -293,36 +293,20 @@ app.post('/steal', async (req,res)=>{
 });
 
 // 防護盾
-
-
-// 防護盾Callback 處理（按鈕）
-bot.on('callback_query', async (ctx) => {
-  const userId = ctx.from.id;
-  const data = ctx.callbackQuery.data;
-  try {
-    // ===== 防護盾 =====
-    if (data === 'shield_yes') {
-      clearState(userId);
-      const user = await getUser(userId);
-      if (user.balance < 50) {
-        return ctx.answerCbQuery('❌ 不足50');
-      }
-      user.balance -= 50;
-      const now = Date.now();
-      const base = user.shieldUntil > now ? user.shieldUntil : now;
-      // 👉 累加🔥
-      user.shieldUntil = base + 60000;
-      await user.save();
-      await ctx.editMessageText('🛡️ 已開啟 +60秒');
-    }
-    if (data === 'shield_no') {
-      clearState(userId);
-      await ctx.editMessageText('已取消');
-    }
-  } catch (err) {
-    console.log(err);
-    clearState(userId);
+app.post('/shield', async (req,res)=>{
+  const user = await getUser(req.body.telegramId);
+  if(user.balance < 50)
+    return res.json({msg:'❌ 不足50'});
+  const now = Date.now();
+  if(user.shieldUntil > now){
+    user.shieldUntil += 60000;
+  }else{
+    user.shieldUntil = now + 60000;
   }
+  user.balance -= 50;
+  await user.save();
+  const remain = Math.floor((user.shieldUntil-now)/1000);
+  res.json({msg:`🛡️ 已開啟\n剩餘:${remain}s`});
 });
 
 // 綁定
@@ -558,6 +542,36 @@ bot.hears('🔗 綁定錢包', async (ctx) => {
     await ctx.reply('請輸入錢包地址：');
   }
   setState(ctx, 'WAIT_WALLET');
+});
+
+// 防護盾Callback 處理（按鈕）
+bot.on('callback_query', async (ctx) => {
+  const userId = ctx.from.id;
+  const data = ctx.callbackQuery.data;
+  try {
+    // ===== 防護盾 =====
+    if (data === 'shield_yes') {
+      clearState(userId);
+      const user = await getUser(userId);
+      if (user.balance < 50) {
+        return ctx.answerCbQuery('❌ 不足50');
+      }
+      user.balance -= 50;
+      const now = Date.now();
+      const base = user.shieldUntil > now ? user.shieldUntil : now;
+      // 👉 累加🔥
+      user.shieldUntil = base + 60000;
+      await user.save();
+      await ctx.editMessageText('🛡️ 已開啟 +60秒');
+    }
+    if (data === 'shield_no') {
+      clearState(userId);
+      await ctx.editMessageText('已取消');
+    }
+  } catch (err) {
+    console.log(err);
+    clearState(userId);
+  }
 });
 
 // ===== FSM核心🔥 =====
