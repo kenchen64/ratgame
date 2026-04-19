@@ -375,9 +375,6 @@ const menu = Markup.keyboard([
 ['🐭 鼠經濟','🔗 綁定錢包'],
 ]).resize();
 
-// ===== FSM 狀態 =====
-const state = {};
-
 // ===== 開始 =====
 bot.start(async (ctx) => {
   try {
