@@ -7,7 +7,6 @@ const { ethers } = require('ethers');
 const bot = new Telegraf(process.env.BOT_TOKEN);
 const app = express();
 app.use(express.json());
-const PORT = process.env.PORT || 10000;
 
 // ===== Mongo =====
 mongoose.connect(process.env.MONGO_URI)
