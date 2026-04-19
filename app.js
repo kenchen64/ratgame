@@ -54,7 +54,6 @@ tasks: {
 // ===== Web3（雙RPC防掉線🔥）=====
 const provider1 = new ethers.JsonRpcProvider(process.env.RPC_URL);
 const provider2 = new ethers.JsonRpcProvider(process.env.RPC_URL_2);
-
 async function getProvider(){
   try{
     await provider1.getBlockNumber();
@@ -75,7 +74,6 @@ async function getUser(id, username='user'){
 // ===== 任務完成發獎 =====
 function checkTaskReward(user){
   let reward = 0;
-
   // ===== 每日 =====
   if(!user.tasks.daily.rewardClaimed){
     if(
@@ -88,7 +86,6 @@ function checkTaskReward(user){
       user.tasks.daily.rewardClaimed = true;
     }
   }
-
   // ===== 每週 =====
   if(!user.tasks.weekly.rewardClaimed){
     if(
@@ -101,11 +98,54 @@ function checkTaskReward(user){
       user.tasks.weekly.rewardClaimed = true;
     }
   }
-
   user.balance += reward;
-
   return reward;
 }
+
+// ===== FSM ENGINE =====
+const FSM = {
+  state: {},        // userId -> stateName
+  timer: {},        // userId -> main timeout
+  warnTimer: {},    // userId -> 10秒提醒
+  timeoutCount: {}  // userId -> 次數（防外掛）
+};
+// ===== 設定狀態 =====
+function setState(ctx, name) {
+  const userId = ctx.from.id;
+  clearState(userId);
+  FSM.state[userId] = name;
+  // 👉 10秒提醒
+  FSM.warnTimer[userId] = setTimeout(() => {
+    ctx.telegram.sendMessage(userId, '⏳ 還剩 20 秒...');
+  }, 10000);
+  // 👉 30秒 timeout
+  FSM.timer[userId] = setTimeout(() => {
+    clearState(userId);
+    FSM.timeoutCount[userId] = (FSM.timeoutCount[userId] || 0) + 1;
+    ctx.telegram.sendMessage(userId, '⌛ 操作逾時，已取消');
+    // 👉 防外掛（連續 timeout）
+    if (FSM.timeoutCount[userId] >= 5) {
+      ctx.telegram.sendMessage(userId, '🚫 偵測異常操作，請稍後再試');
+    }
+  }, 30000);
+}
+// ===== 清除狀態 =====
+function clearState(userId) {
+  if (FSM.timer[userId]) {
+    clearTimeout(FSM.timer[userId]);
+    delete FSM.timer[userId];
+  }
+  if (FSM.warnTimer[userId]) {
+    clearTimeout(FSM.warnTimer[userId]);
+    delete FSM.warnTimer[userId];
+  }
+  delete FSM.state[userId];
+}
+// ===== 取得狀態 =====
+function getState(userId) {
+  return FSM.state[userId];
+}
+
 // ===== 黑洞（修正不為0🔥）=====
 app.get('/blackhole', async (req, res) => {
   try {
@@ -133,7 +173,6 @@ app.get('/blackhole', async (req, res) => {
 
     // ===== CoinGecko 幣價🔥 =====
     let price = 0;
-
     try {
       const cg = await axios.get(
         `https://api.coingecko.com/api/v3/simple/token_price/binance-smart-chain`,
@@ -144,24 +183,19 @@ app.get('/blackhole', async (req, res) => {
           }
         }
       );
-
       const addr = process.env.TOKEN_ADDRESS.toLowerCase();
-
       if (cg.data[addr]) {
         price = cg.data[addr].usd || 0;
       }
-
     } catch (e) {
       console.log('CoinGecko error:', e.message);
       price = 0; // fallback
     }
-
     res.json({
       dead,
       remaining,
       price
     });
-
   } catch (e) {
     console.log('blackhole error:', e.message);
     res.json({
@@ -181,11 +215,9 @@ app.post('/me', async (req,res)=>{
 // 點擊
 app.post('/click', async (req,res)=>{
   const user = await getUser(req.body.telegramId);
-
   if(Date.now()-user.lastClick < 3000){
     return res.json({msg:'⏳ 點擊過快', balance:user.balance});
   }
-
   user.lastClick = Date.now();
   user.balance += 1 ;
   
@@ -195,7 +227,6 @@ user.tasks.weekly.click += 1;
 user.tasks.achievement.totalClick += 1;
 const reward = checkTaskReward(user);
   await user.save();
-
   res.json(user);
   });
 
@@ -219,7 +250,6 @@ app.post('/steal', async (req,res)=>{
           { telegramId: t }
         ]
       });
-
       if(!target)
         return res.json({msg:'❌ 找不到這隻鼠'});
     }
@@ -228,13 +258,10 @@ app.post('/steal', async (req,res)=>{
         telegramId: { $ne: user.telegramId },
         balance: { $gt: 0 }
       });
-
       if(players.length === 0)
         return res.json({msg:'❌ 沒鼠可偷'});
-
       target = players[Math.floor(Math.random()*players.length)];
     }
-
     if(target.telegramId === user.telegramId)
       return res.json({msg:'❌ 不能偷自己'});
 
@@ -265,27 +292,37 @@ app.post('/steal', async (req,res)=>{
   }
 });
 
-app.post('/shield', async (req,res)=>{
-  const user = await getUser(req.body.telegramId);
+// 防護盾
 
-  if(user.balance < 50)
-    return res.json({msg:'❌ 不足50'});
 
-  const now = Date.now();
-
-  if(user.shieldUntil > now){
-    user.shieldUntil += 60000;
-  }else{
-    user.shieldUntil = now + 60000;
+// 防護盾Callback 處理（按鈕）
+bot.on('callback_query', async (ctx) => {
+  const userId = ctx.from.id;
+  const data = ctx.callbackQuery.data;
+  try {
+    // ===== 防護盾 =====
+    if (data === 'shield_yes') {
+      clearState(userId);
+      const user = await getUser(userId);
+      if (user.balance < 50) {
+        return ctx.answerCbQuery('❌ 不足50');
+      }
+      user.balance -= 50;
+      const now = Date.now();
+      const base = user.shieldUntil > now ? user.shieldUntil : now;
+      // 👉 累加🔥
+      user.shieldUntil = base + 60000;
+      await user.save();
+      await ctx.editMessageText('🛡️ 已開啟 +60秒');
+    }
+    if (data === 'shield_no') {
+      clearState(userId);
+      await ctx.editMessageText('已取消');
+    }
+  } catch (err) {
+    console.log(err);
+    clearState(userId);
   }
-
-  user.balance -= 50;
-
-  await user.save();
-
-  const remain = Math.floor((user.shieldUntil-now)/1000);
-
-  res.json({msg:`🛡️ 已開啟\n剩餘:${remain}s`});
 });
 
 // 綁定
@@ -473,23 +510,27 @@ bot.command('steal', async ctx=>{
 });
 
 // ===== 防護盾 =====
-bot.hears('🛡️ 防護盾', async ctx=>{
-  const {data} = await axios.post(`http://localhost:${PORT}/me`,{
-    telegramId:ctx.from.id
-  });
-
-  const now = Date.now();
-  const remain = data.shieldUntil > now
-    ? Math.floor((data.shieldUntil-now)/1000)
+bot.hears('🛡️ 防護盾', async (ctx) => {
+  const user = await getUser(ctx.from.id);
+  const remain = user.shieldUntil > Date.now()
+    ? Math.floor((user.shieldUntil - Date.now()) / 1000)
     : 0;
-
-  state[ctx.from.id] = 'shield';
-
-  ctx.reply(
+  await ctx.reply(
 `🛡️ 防護盾
-剩餘:${remain}s
-是否開啟(y/n)`
+消耗: 50 🧀
+剩餘時間: ${remain}s`,
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: '✅ 開啟', callback_data: 'shield_yes' },
+            { text: '❌ 取消', callback_data: 'shield_no' }
+          ]
+        ]
+      }
+    }
   );
+  setState(ctx, 'WAIT_SHIELD');
 });
 
 // ===== 黑洞 =====
@@ -506,73 +547,59 @@ bot.hears('🐭 鼠經濟', async ctx=>{
 });
 
 // ===== 綁定 =====
-bot.hears('🔗 綁定錢包', async ctx=>{
-  const {data} = await axios.post(`http://localhost:${PORT}/me`,{
-    telegramId:ctx.from.id
-  });
-
-  state[ctx.from.id] = 'wallet';
-
-  if(data.wallet){
-    return ctx.reply(`已綁定:\n${data.wallet}\n輸入新地址:`);
+bot.hears('🔗 綁定錢包', async (ctx) => {
+  const user = await getUser(ctx.from.id);
+  if (user.wallet) {
+    await ctx.reply(
+`已綁定: ${user.wallet}
+請輸入新地址：`
+    );
+  } else {
+    await ctx.reply('請輸入錢包地址：');
   }
-
-  ctx.reply('輸入錢包地址:');
+  setState(ctx, 'WAIT_WALLET');
 });
 
 // ===== FSM核心🔥 =====
-bot.on('text', async (ctx, next)=>{
+bot.on('text', async (ctx, next) => {
   const text = ctx.message.text.trim();
-    if (text.startsWith('/')) {
-    delete state[ctx.from.id];
+  const userId = ctx.from.id;
+
+  // 👉 指令直接放行
+  if (text.startsWith('/')) {
+    clearState(userId);
     return next();
   }
 
-  const s = state[ctx.from.id];
-
-  const isMenu = ['🎮','🖱','⚔️','🛡️','🐭','🔗','🏆','📋']
-    .some(x=>text.includes(x));
-
-  if(isMenu){
-    delete state[ctx.from.id];
+  const Menu = ['🎮','🖱','⚔️','🛡️','🐭','🔗','🏆','📋'];
+    if (menu.some(x => text.includes(x))) {
+    clearState(userId);
     return next();
   }
+ 
+  const s = getState(userId);
 
-  // ===== 防護盾 =====
-  if(s === 'shield'){
-    if(text === 'n'){
-      delete state[ctx.from.id];
-      return ctx.reply('❌ 已取消');
+  if (!s) return next();
+
+  try {
+    // ===== 綁定錢包 =====
+    if (s === 'WAIT_WALLET') {
+      clearState(userId);
+      const wallet = text;
+      if (!/^0x[a-fA-F0-9]{40}$/.test(wallet)) {
+        return ctx.reply('❌ 地址錯誤');
+      }
+      await User.updateOne(
+        { telegramId: userId },
+        { wallet }
+      );
+      return ctx.reply('✅ 綁定成功');
     }
-
-    if(text !== 'y'){
-      return ctx.reply('請輸入 y 或 n');
-    }
-
-    const {data} = await axios.post(`http://localhost:${PORT}/shield`,{
-      telegramId:ctx.from.id
-    });
-
-    delete state[ctx.from.id];
-    return ctx.reply(data.msg);
+  } catch (err) {
+    console.log('FSM error:', err);
+    clearState(userId);
+    return ctx.reply('❌ 系統錯誤');
   }
-
-  // ===== 綁定 =====
-  if(s === 'wallet'){
-    if(!ethers.isAddress(text)){
-      delete state[ctx.from.id];
-      return ctx.reply('❌ 地址錯誤');
-    }
-
-    const {data} = await axios.post(`http://localhost:${PORT}/bind`,{
-      telegramId:ctx.from.id,
-      wallet:text
-    });
-
-    delete state[ctx.from.id];
-    return ctx.reply(data.msg);
-  }
-
   return next();
 });
 
