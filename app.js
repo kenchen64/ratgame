@@ -84,7 +84,7 @@ function menu(){
         [{text:'🌌 黑洞資訊',callback_data:'blackhole'}],
         [{text:'🔗 綁定錢包',callback_data:'wallet'}],
         [{text:'🏆 排行榜',callback_data:'rank'}],
-      ].resize();
+      ].resize()
     }
   };
 }
