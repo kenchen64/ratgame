@@ -197,10 +197,43 @@ bot.on('callback_query', async ctx=>{
 
       const DEAD="0x000000000000000000000000000000000000dead";
       const raw = await contract.balanceOf(DEAD);
-
+    // ===== 鏈上資料 =====
+      const [deadRaw, supplyRaw] = await Promise.all([
+      contract.balanceOf(DEAD),
+      contract.totalSupply()
+    ]);
       const dead = Number(ethers.formatUnits(raw,18));
+      const supply = Number(ethers.formatUnits(supplyRaw, 18));
+      const remaining = supply - dead;
 
-      return ctx.editMessageText(`🌌 黑洞:${dead}`,menu());
+    // ===== CoinGecko 幣價🔥 =====
+    let price = 0;
+    try {
+      const cg = await axios.get(
+        `https://api.coingecko.com/api/v3/simple/token_price/binance-smart-chain`,
+        {
+          params: {
+            contract_addresses: process.env.TOKEN_ADDRESS,
+            vs_currencies: 'usd'
+          }
+        }
+      );
+      const addr = process.env.TOKEN_ADDRESS.toLowerCase();
+      if (cg.data[addr]) {
+        price = cg.data[addr].usd || 0;
+  }
+    
+    } catch (e) {
+      console.log('CoinGecko error:', e.message);
+      price = 0; // fallback
+    }
+
+    res.json({
+      dead,
+      remaining,
+      price
+    });
+      return ctx.editMessageText(`🌌 黑洞:${dead}🐭 鼠重量: $${price}/n🧀 剩餘起司: ${remaining}`,menu());
     }
 
     // ===== 任務 =====
