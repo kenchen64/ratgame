@@ -189,12 +189,12 @@ bot.on('callback_query', async ctx=>{
 
     // ===== 黑洞 =====
     if(data==='blackhole'){
+      const provider = await getProvider();
       const contract = new ethers.Contract(
         process.env.TOKEN_ADDRESS,
         ["function balanceOf(address) view returns(uint256)"],
         provider
       );
-
       const DEAD="0x000000000000000000000000000000000000dead";
       const raw = await contract.balanceOf(DEAD);
     // ===== 鏈上資料 =====
