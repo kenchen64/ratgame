@@ -48,38 +48,6 @@ const User = mongoose.model('User', new mongoose.Schema({
   }
 }));
 
-// ===== 任務完成發獎 =====
-const u = await getUser(id);
-let rewardMsg = '';
-  // ===== 每日 =====
-  if(u.tasks.daily.rewardClaimed){
-    if(
-      u.tasks.daily.click >= 30 &&
-      u.tasks.daily.steal >= 10 &&
-      u.tasks.daily.invite >= 1 &&
-      u.tasks.daily.login
-    ){
-      reward += 50;
-      u.tasks.daily.rewardClaimed = true;
-    }
-  }
-  // ===== 每週 =====
-  if(!u.tasks.weekly.rewardClaimed){
-    if(
-      u.tasks.weekly.click >= 200 &&
-      u.tasks.weekly.steal >= 50 &&
-      u.tasks.weekly.invite >= 5 &&
-      u.tasks.weekly.loginDays >= 7
-    ){
-      reward += 200;
-      u.tasks.weekly.rewardClaimed = true;
-    }
-  }
-  u.balance += reward;
-  await u.save();
-  return reward;
-}
-
 async function getUser(id, username){
   let u = await User.findOne({telegramId:id});
   if(!u){
