@@ -67,7 +67,7 @@ function setState(ctx,name){
   FSM.timer[id]=setTimeout(()=>{
     clearState(id);
     ctx.telegram.sendMessage(id,'⌛ 已取消');
-  },30000);
+  },10000);
 }
 
 function clearState(id){
@@ -84,9 +84,9 @@ function menu(){
     reply_markup:{
       inline_keyboard:[
         [{text:'🎮 開始遊戲',callback_data:'start'},{text:'📋 任務',callback_data:'task'}],
-        [{text:'🖱 點擊',callback_data:'click'},{text:'🏆 排行榜',callback_data:'rank'}],
+        [{text:'🖱 點擊賺起司',callback_data:'click'},{text:'🏆 排行榜',callback_data:'rank'}],
         [{text:'⚔️ 偷起司',callback_data:'steal'},{text:'🛡️ 防護盾',callback_data:'shield'}],
-        [{text:'🌌 黑洞資訊',callback_data:'blackhole'},{text:'🔗 綁定錢包',callback_data:'wallet'}],
+        [{text:'🌌 黑起司經濟',callback_data:'blackhole'},{text:'🔗 綁定錢包',callback_data:'wallet'}],
       ]
     }
   };
@@ -113,7 +113,7 @@ bot.on('callback_query', async ctx=>{
     if(data==='click'){
       const u = await getUser(id);
 
-      if(Date.now()-u.lastClick<2000){
+      if(Date.now()-u.lastClick<3000){
         return ctx.answerCbQuery('⏳ 太快');
       }
 
@@ -180,7 +180,7 @@ bot.on('callback_query', async ctx=>{
       return ctx.editMessageText(
 `🛡️ 護盾
 剩餘:${remain}s
-消耗50`,{
+消耗50🧀`,{
         reply_markup:{
           inline_keyboard:[
             [{text:'✅ 開啟',callback_data:'shield_yes'}],
@@ -193,7 +193,7 @@ bot.on('callback_query', async ctx=>{
     if(data==='shield_yes'){
       const u = await getUser(id);
 
-      if(u.balance<50) return ctx.answerCbQuery('不足');
+      if(u.balance<50) return ctx.answerCbQuery('不足50');
 
       u.balance -= 50;
 
@@ -260,9 +260,9 @@ bot.on('callback_query', async ctx=>{
       }catch{}
 
       return ctx.editMessageText(
-`🌌 黑洞:${dead}
-💰 幣價:$${price}
-🧀 剩餘:${remain}`, menu());
+`🌌 黑洞數量:${dead}
+💰 目前價值:$${price}
+🧀 起司總量:${remain}`, menu());
     }
 
     // ===== 任務 =====
