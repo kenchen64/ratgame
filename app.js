@@ -327,11 +327,35 @@ bot.on('callback_query', async ctx=>{
 🧀 起司總量:${remain}`, menu());
     }
 
-    // ===== 任務 =====
+    // ===== 任務 + 獎勵 =====
     if(data==='task'){
       const u = await getUser(id);
+      let rewardMsg = '';
 
-      return ctx.editMessageText(
+      // 每日任務完成
+      if(u.tasks.daily.click >= 30 &&
+      u.tasks.daily.steal >= 10 &&
+      u.tasks.daily.invite >= 1 &&
+      u.tasks.daily.login &&
+      !u.tasks.daily.rewardClaimed){
+      u.balance+=50;
+      u.tasks.daily.rewardClaimed = true;
+        rewardMsg+='🎁 每日任務完成 +50\n';
+      }
+      // 每周任務完成
+      if(u.tasks.weekly.click >= 200 &&
+      u.tasks.weekly.steal >= 50 &&
+      u.tasks.weekly.invite >= 5 &&
+      u.tasks.weekly.loginDays >= 7 &&
+      !u.tasks.weekly.rewardClaimed){
+      u.balance+=200;
+      u.tasks.weekly.rewardClaimed = true;
+        rewardMsg+='🎁 每周任務完成 +200\n';
+      }
+
+      await u.save();
+
+      return safeSend(ctx,
 `📋 【每日任務】
 🖱 點擊:${u.tasks.daily.click}/30
 ⚔️ 偷起司:${u.tasks.daily.steal}/10
@@ -346,10 +370,7 @@ bot.on('callback_query', async ctx=>{
 🖱 總點擊:${u.tasks.achievement.totalClick}
 ⚔️ 總偷取:${u.tasks.achievement.totalSteal}
 👥 總邀請:${u.tasks.achievement.totalInvite}
-💰 完成獎勵：
-每日 +50 🧀
-每週 +200 🧀
-邀請每人 +20 🧀`, menu());
+${rewardMsg}`);
     }
 
     // ===== 排行榜（3榜🔥）=====
