@@ -90,8 +90,17 @@ async function getUser(id, username){
   return u;
 }
 
-// ===== Web3 =====
-const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
+// ===== Web3（雙RPC防掉線🔥）=====
+const provider1 = new ethers.JsonRpcProvider(process.env.RPC_URL);
+const provider2 = new ethers.JsonRpcProvider(process.env.RPC_URL_2);
+async function getProvider(){
+  try{
+    await provider1.getBlockNumber();
+    return provider1;
+  }catch{
+    return provider2;
+  }
+}
 
 // ===== FSM =====
 const FSM = {state:{},timer:{}};
@@ -200,7 +209,7 @@ bot.on('callback_query', async ctx=>{
       u.tasks.daily.click++;
       u.tasks.weekly.click++;
       u.tasks.achievement.totalClick++;
-
+      const reward = checkTaskReward(user);
       await u.save();
 
       return ctx.editMessageText(
@@ -303,6 +312,7 @@ bot.on('callback_query', async ctx=>{
 
     // ===== 黑洞 =====
     if(data==='blackhole'){
+      const provider = await getProvider();
       const contract = new ethers.Contract(
         process.env.TOKEN_ADDRESS,
         [
