@@ -29,18 +29,55 @@ const User = mongoose.model('User', new mongoose.Schema({
     daily:{
       click:{type:Number,default:0},
       steal:{type:Number,default:0},
+      invite: { type:Number, default:0 },
+      rewardClaimed: { type:Boolean, default:false },
       login:{type:Boolean,default:false}
     },
     weekly:{
       click:{type:Number,default:0},
-      steal:{type:Number,default:0}
+      steal:{type:Number,default:0},
+      invite: { type:Number, default:0 },
+      loginDays: { type:Number, default:0 },
+      rewardClaimed: { type:Boolean, default:false }
     },
     achievement:{
       totalClick:{type:Number,default:0},
-      totalSteal:{type:Number,default:0}
+      totalSteal:{type:Number,default:0},
+      totalInvite: { type:Number, default:0 }
     }
   }
 }));
+
+// ===== 任務完成發獎 =====
+function checkTaskReward(user){
+  let reward = 0;
+  // ===== 每日 =====
+  if(!user.tasks.daily.rewardClaimed){
+    if(
+      user.tasks.daily.click >= 30 &&
+      user.tasks.daily.steal >= 10 &&
+      user.tasks.daily.invite >= 1 &&
+      user.tasks.daily.login
+    ){
+      reward += 50;
+      user.tasks.daily.rewardClaimed = true;
+    }
+  }
+  // ===== 每週 =====
+  if(!user.tasks.weekly.rewardClaimed){
+    if(
+      user.tasks.weekly.click >= 200 &&
+      user.tasks.weekly.steal >= 50 &&
+      user.tasks.weekly.invite >= 5 &&
+      user.tasks.weekly.loginDays >= 7
+    ){
+      reward += 200;
+      user.tasks.weekly.rewardClaimed = true;
+    }
+  }
+  user.balance += reward;
+  return reward;
+}
 
 async function getUser(id, username){
   let u = await User.findOne({telegramId:id});
@@ -98,7 +135,41 @@ bot.start(async ctx=>{
   const user = await getUser(ctx.from.id, ctx.from.username);
   user.tasks.daily.login = true;
   await user.save();
-  ctx.reply('🐭 Rat Game', menu());
+  
+    // ✅ 解析 /start 參數（關鍵修正🔥）
+    const text = ctx.message?.text || '';
+    const args = text.split(' ');
+    const ref = args[1] ? args[1].trim() : null;
+
+    // ===== 新用戶 =====
+    if (!user) {
+      user = await User.create({
+        telegramId: ctx.from.id,
+        username: ctx.from.username || `user_${ctx.from.id}`,
+        referrer: ref || null
+      });
+      // ===== 邀請獎勵（修正 ref 未定義問題🔥）=====
+      if (ref && ref !== String(ctx.from.id)) {
+        const inviter = await User.findOne({ telegramId: ref });
+
+        if (inviter) {
+          inviter.balance += 20; //獎勵
+          inviter.inviteCount = (inviter.inviteCount || 0) + 1;
+
+          // 👉 任務進度（避免 undefined🔥）
+          if (!inviter.tasks) inviter.tasks = {};
+          if (!inviter.tasks.daily) inviter.tasks.daily = {};
+          if (!inviter.tasks.weekly) inviter.tasks.weekly = {};
+          if (!inviter.tasks.achievement) inviter.tasks.achievement = {};
+
+          inviter.tasks.daily.invite = (inviter.tasks.daily.invite || 0) + 1;
+          inviter.tasks.weekly.invite = (inviter.tasks.weekly.invite || 0) + 1;
+          inviter.tasks.achievement.totalInvite =
+            (inviter.tasks.achievement.totalInvite || 0) + 1;
+
+          await inviter.save();
+         }}}
+  ctx.reply('🐭 歡迎回來，登入成功', menu());
 });
 
 // ===== CALLBACK =====
@@ -276,18 +347,25 @@ bot.on('callback_query', async ctx=>{
       const u = await getUser(id);
 
       return ctx.editMessageText(
-`📋 每日
-點擊:${u.tasks.daily.click}/30
-偷:${u.tasks.daily.steal}/10
-登入:${u.tasks.daily.login?'✅':'❌'}
+`📋 【每日任務】
+🖱 點擊:${u.tasks.daily.click}/30
+⚔️ 偷起司:${u.tasks.daily.steal}/10
+👥 邀請:${u.tasks.daily.invite}/1
+🎮 登入:${u.tasks.daily.login?'✅':'❌'}
+📆 【每週任務】
+🖱 點擊:${u.tasks.weekly.click}/200
+⚔️ 偷起司:${u.tasks.weekly.steal}/50
+👥 邀請:${u.tasks.weekly.invite}/5
+📅 登入天數:${u.tasks.weekly.loginDays}/7
+🏆 【成就】
+🖱 總點擊:${u.tasks.achievement.totalClick}
+⚔️ 總偷取:${u.tasks.achievement.totalSteal}
+👥 總邀請:${u.tasks.achievement.totalInvite}
 
-📆 每週
-點擊:${u.tasks.weekly.click}/200
-偷:${u.tasks.weekly.steal}/50
-
-🏆 成就
-點擊:${u.tasks.achievement.totalClick}
-偷:${u.tasks.achievement.totalSteal}`, menu());
+💰 完成獎勵：
+每日 +50 🧀
+每週 +200 🧀
+邀請每人 +20 🧀`, menu());
     }
 
     // ===== 排行榜（3榜🔥）=====
