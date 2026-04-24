@@ -225,8 +225,8 @@ bot.on('callback_query', async ctx=>{
       setState(ctx,'wallet');
       const u = await getUser(id);
 
-      return ctx.reply(
-`目前:${u.wallet||'未綁定'}
+      return ctx.editMessageText(
+`目前錢包:${u.wallet||'未綁定'}
 輸入新地址`, menu());
     }
 
