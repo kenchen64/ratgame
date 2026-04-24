@@ -206,7 +206,7 @@ bot.on('callback_query', async ctx=>{
         ? Math.floor((u.shieldUntil - Date.now())/1000)
         : 0;
 
-      return ctx.reply(
+      return ctx.editMessageText(
 `🛡️ 護盾
 剩餘:${remain}s
 消耗50🧀`,{
@@ -240,7 +240,7 @@ bot.on('callback_query', async ctx=>{
     }
 
     if(data==='shield_no'){
-      return ctx.editMessageText('取消', menu());
+      return ctx.reply('取消', menu());
     }
 
     // ===== 錢包（UI不消失🔥）=====
@@ -352,22 +352,22 @@ ${rewardMsg}`);
 
       let msg='🏆 點擊榜\n';
       clickTop.forEach((u,i)=>{
-        msg+=`${i+1}.${u.username} 共點擊${u.tasks.achievement.totalClick}\n`;
+        msg+=`${i+1}.${u.username} 共🖱${u.tasks.achievement.totalClick}次\n`;
       });
 
       msg+='\n🏆 起司榜\n';
       balanceTop.forEach((u,i)=>{
-        msg+=`${i+1}.${u.username} 目前有${u.balance}起司\n`;
+        msg+=`${i+1}.${u.username} 目前🧀${u.balance}個\n`;
       });
 
       msg+='\n⚔️ 偷取榜\n';
       stealTop.forEach((u,i)=>{
-        msg+=`${i+1}.${u.username} 共偷取${u.steal}次\n`;
+        msg+=`${i+1}.${u.username} 共⚔️${u.steal}次\n`;
       });
 
       msg+='\n👥 邀請榜\n';
       inviteTop.forEach((u,i)=>{
-        msg+=`${i+1}.${u.username} 共邀請${u.inviteCount}老鼠\n`;
+        msg+=`${i+1}.${u.username} 共邀請${u.inviteCount}🐭\n`;
       });
 
       return ctx.editMessageText(msg, menu());
