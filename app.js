@@ -83,14 +83,10 @@ function menu(){
   return {
     reply_markup:{
       inline_keyboard:[
-        [{text:'🎮 開始遊戲',callback_data:'start'}],
-        [{text:'🖱 點擊',callback_data:'click'}],
-        [{text:'⚔️ 偷起司',callback_data:'steal'}],
-        [{text:'🛡️ 防護盾',callback_data:'shield'}],
-        [{text:'🌌 黑洞資訊',callback_data:'blackhole'}],
-        [{text:'🔗 綁定錢包',callback_data:'wallet'}],
-        [{text:'📋 任務',callback_data:'task'}],
-        [{text:'🏆 排行榜',callback_data:'rank'}],
+        [{text:'🎮 開始遊戲',callback_data:'start'},{text:'📋 任務',callback_data:'task'}],
+        [{text:'🖱 點擊',callback_data:'click'},{text:'🏆 排行榜',callback_data:'rank'}],
+        [{text:'⚔️ 偷起司',callback_data:'steal'},{text:'🛡️ 防護盾',callback_data:'shield'}],
+        [{text:'🌌 黑洞資訊',callback_data:'blackhole'},{text:'🔗 綁定錢包',callback_data:'wallet'}],
       ]
     }
   };
