@@ -355,7 +355,7 @@ ${rewardMsg}`);
         msg+=`${i+1}.${u.username} 共🖱${u.tasks.achievement.totalClick}次\n`;
       });
 
-      msg+='\n🏆 起司榜\n';
+      msg+='\n🧀 起司榜\n';
       balanceTop.forEach((u,i)=>{
         msg+=`${i+1}.${u.username} 目前🧀${u.balance}個\n`;
       });
