@@ -329,11 +329,13 @@ bot.on('callback_query', async ctx=>{
 ⚔️ 偷起司:${u.tasks.daily.steal}/10
 👥 邀請:${u.tasks.daily.invite}/1
 🎮 登入:${u.tasks.daily.login?'✅':'❌'}
+
 📆 【每週任務】
 🖱 點擊:${u.tasks.weekly.click}/200
 ⚔️ 偷起司:${u.tasks.weekly.steal}/50
 👥 邀請:${u.tasks.weekly.invite}/5
 📅 登入天數:${u.tasks.weekly.loginDays}/7
+
 🏆 【成就】
 🖱 總點擊:${u.tasks.achievement.totalClick}
 ⚔️ 總偷取:${u.tasks.achievement.totalSteal}
@@ -343,23 +345,29 @@ ${rewardMsg}`);
 
     // ===== 排行榜（3榜🔥）=====
     if(data==='rank'){
-      const clickTop = await User.find().sort({balance:-1}).limit(5);
+      const clickTop = await User.find().sort({tasks.achievement.totalClick:-1}).limit(5);
+      const balanceTop = await User.find().sort({balance:-1}).limit(5);
       const stealTop = await User.find().sort({steal:-1}).limit(5);
       const inviteTop = await User.find().sort({inviteCount:-1}).limit(5);
 
       let msg='🏆 點擊榜\n';
       clickTop.forEach((u,i)=>{
-        msg+=`${i+1}.${u.username} ${u.balance}\n`;
+        msg+=`${i+1}.${u.username} 共點擊${u.tasks.achievement.totalClick}\n`;
+      });
+
+      msg+='\n🏆 起司榜\n';
+      balanceTop.forEach((u,i)=>{
+        msg+=`${i+1}.${u.username} 目前有${u.balance}起司\n`;
       });
 
       msg+='\n⚔️ 偷取榜\n';
       stealTop.forEach((u,i)=>{
-        msg+=`${i+1}.${u.username} ${u.steal}\n`;
+        msg+=`${i+1}.${u.username} 共偷取${u.steal}次\n`;
       });
 
       msg+='\n👥 邀請榜\n';
       inviteTop.forEach((u,i)=>{
-        msg+=`${i+1}.${u.username} ${u.inviteCount}\n`;
+        msg+=`${i+1}.${u.username} 共邀請${u.inviteCount}老鼠\n`;
       });
 
       return ctx.editMessageText(msg, menu());
