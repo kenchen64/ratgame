@@ -109,6 +109,12 @@ bot.on('callback_query', async ctx=>{
 
   try{
 
+    // ===== 開始 =====
+    if(data==='start'){
+      clearState(id);
+      return ctx.editMessageText('🎮 遊戲開始',menu());
+    }
+
     // ===== 點擊 =====
     if(data==='click'){
       const u = await getUser(id);
@@ -273,6 +279,7 @@ bot.on('callback_query', async ctx=>{
 `📋 每日
 點擊:${u.tasks.daily.click}/30
 偷:${u.tasks.daily.steal}/10
+登入:${u.tasks.daily.login?'✅':'❌'}
 
 📆 每週
 點擊:${u.tasks.weekly.click}/200
