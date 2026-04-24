@@ -345,7 +345,7 @@ ${rewardMsg}`);
 
     // ===== 排行榜（3榜🔥）=====
     if(data==='rank'){
-      const clickTop = await User.find().sort({tasks.achievement.totalClick:-1}).limit(5);
+      const clickTop = await User.find().sort({totalClick:-1}).limit(5);
       const balanceTop = await User.find().sort({balance:-1}).limit(5);
       const stealTop = await User.find().sort({steal:-1}).limit(5);
       const inviteTop = await User.find().sort({inviteCount:-1}).limit(5);
