@@ -29,7 +29,7 @@ const User = mongoose.model('User', new mongoose.Schema({
     daily:{
       click:{type:Number,default:0},
       steal:{type:Number,default:0},
-      invite: { type:Number, default:0 },
+      invite:{type:Number,default:0,claimed:false},
       rewardClaimed: { type:Boolean, default:false },
       login:{type:Boolean,default:false}
     },
@@ -49,33 +49,34 @@ const User = mongoose.model('User', new mongoose.Schema({
 }));
 
 // ===== 任務完成發獎 =====
-function checkTaskReward(user){
-  let reward = 0;
+const u = await getUser(id);
+let rewardMsg = '';
   // ===== 每日 =====
-  if(!user.tasks.daily.rewardClaimed){
+  if(u.tasks.daily.rewardClaimed){
     if(
-      user.tasks.daily.click >= 30 &&
-      user.tasks.daily.steal >= 10 &&
-      user.tasks.daily.invite >= 1 &&
-      user.tasks.daily.login
+      u.tasks.daily.click >= 30 &&
+      u.tasks.daily.steal >= 10 &&
+      u.tasks.daily.invite >= 1 &&
+      u.tasks.daily.login
     ){
       reward += 50;
-      user.tasks.daily.rewardClaimed = true;
+      u.tasks.daily.rewardClaimed = true;
     }
   }
   // ===== 每週 =====
-  if(!user.tasks.weekly.rewardClaimed){
+  if(!u.tasks.weekly.rewardClaimed){
     if(
-      user.tasks.weekly.click >= 200 &&
-      user.tasks.weekly.steal >= 50 &&
-      user.tasks.weekly.invite >= 5 &&
-      user.tasks.weekly.loginDays >= 7
+      u.tasks.weekly.click >= 200 &&
+      u.tasks.weekly.steal >= 50 &&
+      u.tasks.weekly.invite >= 5 &&
+      u.tasks.weekly.loginDays >= 7
     ){
       reward += 200;
-      user.tasks.weekly.rewardClaimed = true;
+      u.tasks.weekly.rewardClaimed = true;
     }
   }
-  user.balance += reward;
+  u.balance += reward;
+  await u.save();
   return reward;
 }
 
@@ -138,6 +139,15 @@ function menu(){
   };
 }
 
+// ===== 安全發送 =====
+async function safeSend(ctx, text){
+  try{
+    return await ctx.editMessageText(text, menu());
+  }catch{
+    return await ctx.reply(text, menu());
+  }
+}
+
 // ===== START =====
 bot.start(async ctx=>{
   clearState(ctx.from.id);
@@ -145,39 +155,6 @@ bot.start(async ctx=>{
   user.tasks.daily.login = true;
   await user.save();
   
-    // ✅ 解析 /start 參數（關鍵修正🔥）
-    const text = ctx.message?.text || '';
-    const args = text.split(' ');
-    const ref = args[1] ? args[1].trim() : null;
-
-    // ===== 新用戶 =====
-    if (!user) {
-      user = await User.create({
-        telegramId: ctx.from.id,
-        username: ctx.from.username || `user_${ctx.from.id}`,
-        referrer: ref || null
-      });
-      // ===== 邀請獎勵（修正 ref 未定義問題🔥）=====
-      if (ref && ref !== String(ctx.from.id)) {
-        const inviter = await User.findOne({ telegramId: ref });
-
-        if (inviter) {
-          inviter.balance += 20; //獎勵
-          inviter.inviteCount = (inviter.inviteCount || 0) + 1;
-
-          // 👉 任務進度（避免 undefined🔥）
-          if (!inviter.tasks) inviter.tasks = {};
-          if (!inviter.tasks.daily) inviter.tasks.daily = {};
-          if (!inviter.tasks.weekly) inviter.tasks.weekly = {};
-          if (!inviter.tasks.achievement) inviter.tasks.achievement = {};
-
-          inviter.tasks.daily.invite = (inviter.tasks.daily.invite || 0) + 1;
-          inviter.tasks.weekly.invite = (inviter.tasks.weekly.invite || 0) + 1;
-          inviter.tasks.achievement.totalInvite =
-            (inviter.tasks.achievement.totalInvite || 0) + 1;
-
-          await inviter.save();
-         }}}
   ctx.reply('🐭 歡迎回來，登入成功', menu());
 });
 
@@ -209,7 +186,7 @@ bot.on('callback_query', async ctx=>{
       u.tasks.daily.click++;
       u.tasks.weekly.click++;
       u.tasks.achievement.totalClick++;
-      const reward = checkTaskReward(user);
+      
       await u.save();
 
       return ctx.editMessageText(
@@ -224,36 +201,34 @@ bot.on('callback_query', async ctx=>{
     // ===== 偷起司（修正無反應🔥）=====
     if(data==='steal'){
       const users = await User.find({telegramId:{$ne:id}});
-      if(users.length===0) return ctx.answerCbQuery('❌ 沒人');
+      if(users.length===0) return ctx.answerCbQuery('❌ 沒老鼠可偷');
 
-      const t = users[Math.floor(Math.random()*users.length)];
-      const a = await getUser(id);
-
-      if(Date.now() < t.shieldUntil)
+      const attacker = await getUser(id);
+      const target = users[Math.floor(Math.random()*users.length)];
+      if(Date.now() < target.shieldUntil){
         return ctx.answerCbQuery('🛡️ 對方有盾');
-
-      if(t.balance<=0)
+      }
+      if(target.balance<=0){
         return ctx.answerCbQuery('💸 對方沒錢');
+      }
+      const steal = Math.max(1, Math.floor(target.balance * 0.2));
+      target.balance -= steal;
+      attacker.balance += steal;
 
-      const steal = Math.floor(t.balance*0.2);
+      attacker.steal++;
+      attacker.tasks.daily.steal++;
+      attacker.tasks.weekly.steal++;
+      attacker.tasks.achievement.totalSteal++;
 
-      t.balance -= steal;
-      a.balance += steal;
+      await target.save();
+      await attacker.save();
 
-      a.steal++;
-      a.tasks.daily.steal++;
-      a.tasks.weekly.steal++;
-      a.tasks.achievement.totalSteal++;
+      return safeSend(ctx,
+`🐭 偷成功！
+🎯 ${target.username}
+🧀 +${steal}
 
-      await t.save();
-      await a.save();
-
-      return ctx.editMessageText(
-`🐭 偷到 ${steal}
-👤 對象:${t.username}
-
-📋 任務
-偷:${a.tasks.daily.steal}/10`, menu());
+📋 任務:${attacker.tasks.daily.steal}/10`);
     }
 
     // ===== 防護盾 =====
@@ -263,7 +238,7 @@ bot.on('callback_query', async ctx=>{
         ? Math.floor((u.shieldUntil - Date.now())/1000)
         : 0;
 
-      return ctx.editMessageText(
+      return ctx.reply(
 `🛡️ 護盾
 剩餘:${remain}s
 消耗50🧀`,{
@@ -293,7 +268,7 @@ bot.on('callback_query', async ctx=>{
 
       const remain = Math.floor((u.shieldUntil - Date.now())/1000);
 
-      return ctx.editMessageText(`🛡️ 已開啟\n剩餘:${remain}s`, menu());
+      return ctx.reply(`🛡️ 已開啟\n剩餘:${remain}s`, menu());
     }
 
     if(data==='shield_no'){
@@ -371,7 +346,6 @@ bot.on('callback_query', async ctx=>{
 🖱 總點擊:${u.tasks.achievement.totalClick}
 ⚔️ 總偷取:${u.tasks.achievement.totalSteal}
 👥 總邀請:${u.tasks.achievement.totalInvite}
-
 💰 完成獎勵：
 每日 +50 🧀
 每週 +200 🧀
