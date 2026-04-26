@@ -192,11 +192,11 @@ async function safeSend(ctx, text){
 
 // ===== START =====
 bot.start((ctx)=>{
-  ctx.reply('🐭 Rat Game', {
+  ctx.reply('🎮 開啟遊戲', {
     reply_markup:{
       keyboard:[
         [{
-          text:'🎮 開啟遊戲',
+          text:'🎮 進入遊戲',
           web_app:{ url: process.env.WEBAPP_URL }
         }]
       ],
