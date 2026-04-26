@@ -21,6 +21,7 @@
     <div class="stats">
         <h2 id="username">載入中...</h2>
         <p>餘額: <span id="balance">0</span> 💰</p>
+<p>目前排名: 第 <span id="my-rank">--</span> 名</p>
         <p id="shield-status">🛡️ 無護盾</p>
     <h3>🏆 全服排行榜</h3>
     <ul id="leaderboard-list" style="list-style: none; padding: 0; text-align: left;">
@@ -68,6 +69,8 @@
             if (!user) return;
             document.getElementById('username').innerText = `🐭 ${user.username}`;
             document.getElementById('balance').innerText = user.balance;
+document.getElementById('my-rank').innerText = user.rank; // 顯示排名
+    
             
             const shieldRemaining = user.shieldUntil - Date.now();
             if (shieldRemaining > 0) {
