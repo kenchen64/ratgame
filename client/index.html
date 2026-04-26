@@ -28,6 +28,9 @@
         <li>載入中...</li>
     </ul>
 
+    <button class="btn-action" onclick="shareInvite()" style="background: #0088cc;">
+        📢 邀請好友 (賺 100 💰)
+    </button>
     </div>
 
     <button class="btn-click" onclick="gameAction('/click')">按我賺錢！(+1)</button><br>
@@ -79,6 +82,20 @@ document.getElementById('my-rank').innerText = user.rank; // 顯示排名
                 document.getElementById('shield-status').innerText = '🛡️ 無護盾';
             }
         }
+
+//邀請參數
+function shareInvite() {
+    const botUsername = 'RatClickerGameBot'; // 例如: MyRatGame_bot
+    const userId = tg.initDataUnsafe.user.id;
+    
+    // 構造帶有 start 參數的連結
+    const inviteLink = `https://t.me{botUsername}?start=${userId}`;
+    const shareText = "快來跟我一起玩鼠鼠大作戰，點擊連結送 100 金幣！";
+    
+    // 使用 Telegram 原生分享介面
+    const fullUrl = `https://t.me{encodeURIComponent(inviteLink)}&text=${encodeURIComponent(shareText)}`;
+    tg.openTelegramLink(fullUrl);
+}
 
 // 獲取並渲染排行榜
 async function updateLeaderboard() {
