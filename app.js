@@ -49,13 +49,28 @@ function verifyTelegramWebAppData(req, res, next) {
     next();
 }
 
-// 輔助函式：確保用戶存在
-async function ensureUser(tgUser) {
-    return await User.findOneAndUpdate(
-        { telegramId: tgUser.id.toString() },
-        { $set: { username: tgUser.username || `user_${tgUser.id}` } },
-        { upsert: true, new: true }
-    );
+// 輔助函式：確保用戶存在，加入邀請獎勵邏輯
+async function ensureUser(tgUser, referrerId = null) {
+    let u = await User.findOne({ telegramId: tgUser.id.toString() });
+    
+    if (!u) {
+        // 這是新玩家
+        u = await User.create({
+            telegramId: tgUser.id.toString(),
+            username: tgUser.username || `user_${tgUser.id}`,
+            balance: 0 
+        });
+
+        // 如果有邀請人，且邀請人不是自己
+        if (referrerId && referrerId !== tgUser.id.toString()) {
+            await User.updateOne(
+                { telegramId: referrerId },
+                { $inc: { balance: 100 } } // 邀請獎勵：100 💰
+            );
+            console.log(`用戶 ${referrerId} 獲得邀請獎勵`);
+        }
+    }
+    return u;
 }
 
 // ===== API 路由 =====
@@ -164,11 +179,19 @@ app.post('/leaderboard', verifyTelegramWebAppData, async (req, res) => {
 // ===== 前端 & Bot =====
 app.use(express.static(path.join(__dirname, 'client')));
 
-bot.start((ctx) => {
+bot.start(async (ctx) => {
+    // 取得邀請人的 ID (來自連結中的 start_param)
+    const referrerId = ctx.startPayload; // 如果連結是 t.me/bot?start=123, 這裡會拿到 "123"
+
+    // 建立新玩家時傳入邀請人 ID
+    await ensureUser(ctx.from, referrerId);
+
     ctx.reply('🎮 進入鼠鼠大作戰', {
         reply_markup: {
-            keyboard: [[{ text: '🎮 開始遊戲', web_app: { url: process.env.WEBAPP_URL } }]],
-            resize_keyboard: true
+            inline_keyboard: [[{ 
+                text: '🎮 開始遊戲', 
+                web_app: { url: process.env.WEBAPP_URL } 
+            }]]
         }
     });
 });
