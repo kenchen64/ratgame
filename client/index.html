@@ -77,6 +77,39 @@
             }
         }
 
+// 獲取並渲染排行榜
+async function updateLeaderboard() {
+    const players = await apiRequest('/leaderboard');
+    if (!players) return;
+
+    const listElement = document.getElementById('leaderboard-list');
+    listElement.innerHTML = ''; // 清空舊內容
+
+    players.forEach((player, index) => {
+        const li = document.createElement('li');
+        li.style.padding = '8px 0';
+        li.style.borderBottom = '1px solid #eee';
+        
+        // 前三名加上獎盃符號
+        const medals = ['🥇', '🥈', '🥉'];
+        const rank = medals[index] || `${index + 1}.`;
+        
+        li.innerHTML = `
+            <span style="width: 30px; display: inline-block;">${rank}</span>
+            <strong>${player.username}</strong> 
+            <span style="float: right;">${player.balance} 💰</span>
+        `;
+        listElement.appendChild(li);
+    });
+}
+
+// 修改原有的 fetchUserData 函式，順便更新排行榜
+async function fetchUserData() {
+    const user = await apiRequest('/me');
+    updateUI(user);
+    updateLeaderboard(); // 更新排行榜
+}
+
         // 動作處理
         async function gameAction(path) {
             const res = await apiRequest(path);
