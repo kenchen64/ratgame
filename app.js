@@ -29,16 +29,18 @@ const User = mongoose.model('User', new mongoose.Schema({
     daily:{
       click:{type:Number,default:0},
       steal:{type:Number,default:0},
-      invite:{type:Number,default:0,claimed:false},
+      invite:{type:Number,default:0},
       rewardClaimed: { type:Boolean, default:false },
-      login:{type:Boolean,default:false}
+      login:{type:Boolean,default:false},
+      lastReset: { type: Number, default: 0 }
     },
     weekly:{
       click:{type:Number,default:0},
       steal:{type:Number,default:0},
       invite: { type:Number, default:0 },
       loginDays: { type:Number, default:0 },
-      rewardClaimed: { type:Boolean, default:false }
+      rewardClaimed: { type:Boolean, default:false },
+      lastReset: { type: Number, default: 0 }
     },
     achievement:{
       totalClick:{type:Number,default:0},
@@ -57,6 +59,33 @@ async function getUser(id, username){
     });
   }
   return u;
+}
+// ===== 任務重置系統 =====
+function resetTasks(user) {
+  const now = Date.now();
+
+  const today = new Date().setHours(0,0,0,0);
+  const weekStart = new Date();
+  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+  weekStart.setHours(0,0,0,0);
+  // ===== Daily =====
+  if (!user.tasks.daily.lastReset || user.tasks.daily.lastReset < today) {
+    user.tasks.daily = {
+      click: 0,
+      steal: 0,
+      login: false,
+      lastReset: today
+    };
+  }
+  // ===== Weekly =====
+  if (!user.tasks.weekly.lastReset || user.tasks.weekly.lastReset < weekStart) {
+    user.tasks.weekly = {
+      click: 0,
+      steal: 0,
+      loginDays: 0,
+      lastReset: weekStart
+    };
+  }
 }
 
 // ===== Web3（雙RPC防掉線🔥）=====
@@ -120,8 +149,13 @@ async function safeSend(ctx, text){
 bot.start(async ctx=>{
   clearState(ctx.from.id);
   const user = await getUser(ctx.from.id, ctx.from.username);
-  user.tasks.daily.login = true;
-  user.tasks.weekly.loginDays += 1;
+  resetTasks(user);
+  // ===== 每日登入 =====
+  if (!user.tasks.daily.login) {
+    user.tasks.daily.login = true;
+    user.tasks.weekly.loginDays += 1;
+  }
+  
   await user.save();
   
   ctx.reply('🐭 歡迎回來，登入成功', menu());
