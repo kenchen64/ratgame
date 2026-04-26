@@ -125,7 +125,14 @@ function getState(id){return FSM.state[id];}
 // 後端 API
 app.use(express.static('public'));
 app.use(express.json());
-app.use(express.static('client'));
+const path = require('path');
+// 提供 React 靜態檔
+app.use(express.static(path.join(__dirname, 'client')));
+// 所有路由回 React（SPA）
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'client', 'index.html'));
+});
+
 // 取得資料
 app.post('/me', async (req,res)=>{
   const u = await getUser(req.body.telegramId);
