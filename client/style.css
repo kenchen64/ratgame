@@ -1,0 +1,49 @@
+body {
+  margin: 0;
+  background: #0f172a;
+  color: white;
+  font-family: sans-serif;
+}
+
+.container {
+  text-align: center;
+  padding: 20px;
+}
+
+.hud {
+  display: flex;
+  justify-content: space-between;
+  background: #1e293b;
+  padding: 10px;
+  border-radius: 10px;
+}
+
+.main-btn {
+  margin-top: 40px;
+  width: 80%;
+  height: 120px;
+  font-size: 24px;
+  border: none;
+  border-radius: 20px;
+  background: #22c55e;
+  color: white;
+}
+
+.actions {
+  margin-top: 30px;
+}
+
+.actions button {
+  margin: 10px;
+  padding: 15px;
+  width: 100px;
+  border-radius: 10px;
+  border: none;
+  background: #334155;
+  color: white;
+}
+
+.loading {
+  text-align: center;
+  margin-top: 100px;
+}
