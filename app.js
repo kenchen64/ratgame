@@ -60,11 +60,20 @@ async function ensureUser(tgUser) {
 
 // ===== API 路由 =====
 
-// 獲取玩家資料
+// 獲取玩家資料 + 計算排名
 app.post('/me', verifyTelegramWebAppData, async (req, res) => {
     const u = await ensureUser(req.tgUser);
-    res.json(u);
+    
+    // 計算有多少人的 balance 比自己高
+    const rank = await User.countDocuments({ balance: { $gt: u.balance } }) + 1;
+
+    // 將排名資訊併入回傳結果 (不影響資料庫)
+    const userData = u.toObject();
+    userData.rank = rank;
+    
+    res.json(userData);
 });
+
 
 // 點擊 (修正3: 使用原子操作)
 app.post('/click', verifyTelegramWebAppData, async (req, res) => {
