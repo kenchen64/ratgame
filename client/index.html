@@ -3,136 +3,100 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rat Game - Mini App</title>
+    <title>Rat Game Mini App</title>
+    <!-- 1. 引入 Telegram Web App 核心腳本 -->
     <script src="https://telegram.org"></script>
-    <script src="https://tailwindcss.com"></script>
     <style>
-        body { background-color: #1a1a1a; color: white; user-select: none; }
-        .rat-btn { transition: transform 0.1s active:scale-95; }
-        .shield-active { border: 2px solid #34d399; box-shadow: 0 0 15px #34d399; }
+        body { font-family: sans-serif; text-align: center; padding: 20px; background: #f0f2f5; }
+        .stats { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        button { padding: 15px 30px; font-size: 18px; margin: 10px; border: none; border-radius: 10px; cursor: pointer; transition: 0.2s; }
+        .btn-click { background: #0088cc; color: white; width: 100%; height: 100px; font-weight: bold; }
+        .btn-action { background: #34a853; color: white; }
+        .btn-shield { background: #fbbc05; color: white; }
+        button:active { transform: scale(0.95); opacity: 0.8; }
     </style>
 </head>
-<body class="flex flex-col items-center justify-between min-h-screen p-6">
+<body>
 
-    <!-- 頂部資訊 -->
-    <div class="w-full flex justify-between items-center bg-gray-800 p-4 rounded-xl shadow-lg">
-        <div>
-            <p class="text-gray-400 text-xs">玩家</p>
-            <p id="username" class="font-bold text-lg">載入中...</p>
-        </div>
-        <div class="text-right">
-            <p class="text-gray-400 text-xs">餘額</p>
-            <p id="balance" class="font-bold text-2xl text-yellow-400">0</p>
-        </div>
+    <div class="stats">
+        <h2 id="username">載入中...</h2>
+        <p>餘額: <span id="balance">0</span> 💰</p>
+        <p id="shield-status">🛡️ 無護盾</p>
     </div>
 
-    <!-- 遊戲主體 -->
-    <div class="flex flex-col items-center space-y-8">
-        <div id="rat-container" class="relative">
-            <button id="clickBtn" class="rat-btn text-8xl bg-gray-700 p-10 rounded-full shadow-2xl">
-                🐭
-            </button>
-            <div id="shield-status" class="hidden absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full">
-                🛡️ 護盾中
-            </div>
-        </div>
-        <p class="text-gray-400">點擊老鼠來賺錢！</p>
-    </div>
-
-    <!-- 動作按鈕 -->
-    <div class="w-full grid grid-cols-2 gap-4">
-        <button onclick="performAction('steal')" class="bg-red-600 hover:bg-red-700 p-4 rounded-xl font-bold flex flex-col items-center">
-            <span>🥷 偷竊</span>
-            <span class="text-xs font-normal opacity-80">隨機目標</span>
-        </button>
-        <button onclick="performAction('shield')" class="bg-blue-600 hover:bg-blue-700 p-4 rounded-xl font-bold flex flex-col items-center">
-            <span>🛡️ 護盾</span>
-            <span class="text-xs font-normal opacity-80">50 金幣 / 60秒</span>
-        </button>
-    </div>
+    <button class="btn-click" onclick="gameAction('/click')">按我賺錢！(+1)</button><br>
+    <button class="btn-action" onclick="gameAction('/steal')">隨機偷取 (20%)</button>
+    <button class="btn-shield" onclick="gameAction('/shield')">買護盾 (50 💰/60秒)</button>
 
     <script>
-        const API_BASE = 'https://ratgame.onrender.com';
+        // 初始化 Telegram WebApp
         const tg = window.Telegram.WebApp;
-        tg.expand(); // 展開視窗
+        tg.expand(); // 自動展開成全螢幕
 
-        // 從 Telegram 獲取使用者資料
-        const user = tg.initDataUnsafe?.user || { id: 12345, username: '測試玩家' };
-        
-        const state = {
-            telegramId: user.id,
-            username: user.username
-        };
+        // 核心封裝：發送帶有驗證資料的請求
+        async function apiRequest(endpoint, data = {}) {
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        // 2. 這是後端用來驗證身分的關鍵
+                        'x-telegram-init-data': tg.initData 
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.status === 401 || response.status === 403) {
+                    alert('身分驗證失敗，請從 Telegram 重新進入遊戲');
+                    return null;
+                }
+
+                return await response.json();
+            } catch (err) {
+                console.error('API Error:', err);
+                return null;
+            }
+        }
 
         // 更新介面
-        async function updateUI() {
-            try {
-                const res = await fetch('/me', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(state)
-                });
-                const data = await res.json();
-                
-                document.getElementById('username').innerText = data.username;
-                document.getElementById('balance').innerText = Math.floor(data.balance);
-                
-                // 護盾狀態
-                const shieldStatus = document.getElementById('shield-status');
-                const ratBtn = document.getElementById('clickBtn');
-                if (data.shieldUntil > Date.now()) {
-                    shieldStatus.classList.remove('hidden');
-                    ratBtn.classList.add('shield-active');
-                } else {
-                    shieldStatus.classList.add('hidden');
-                    ratBtn.classList.remove('shield-active');
-                }
-            } catch (e) {
-                console.error("更新失敗", e);
+        function updateUI(user) {
+            if (!user) return;
+            document.getElementById('username').innerText = `🐭 ${user.username}`;
+            document.getElementById('balance').innerText = user.balance;
+            
+            const shieldRemaining = user.shieldUntil - Date.now();
+            if (shieldRemaining > 0) {
+                document.getElementById('shield-status').innerText = `🛡️ 護盾剩下 ${Math.ceil(shieldRemaining/1000)} 秒`;
+            } else {
+                document.getElementById('shield-status').innerText = '🛡️ 無護盾';
             }
         }
 
-        // 點擊事件
-        document.getElementById('clickBtn').addEventListener('click', async () => {
-            try {
-                const res = await fetch('/click', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ telegramId: state.telegramId })
-                });
-                const data = await res.json();
-                
-                if (data.msg === '+1') {
-                    // 觸發震動
-                    tg.HapticFeedback.impactOccurred('light');
-                    updateUI();
-                } else {
-                    tg.showAlert(data.msg);
+        // 動作處理
+        async function gameAction(path) {
+            const res = await apiRequest(path);
+            if (res) {
+                if (res.msg) {
+                    // 使用 Telegram 原生通知彈窗
+                    tg.showAlert(res.msg);
                 }
-            } catch (e) {
-                console.error(e);
-            }
-        });
-
-        // 偷竊與護盾動作
-        async function performAction(type) {
-            try {
-                const res = await fetch(`/${type}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ telegramId: state.telegramId })
-                });
-                const data = await res.json();
-                tg.showAlert(data.msg);
-                updateUI();
-            } catch (e) {
-                console.error(e);
+                // 動作完成後重新獲取最新狀態
+                fetchUserData();
             }
         }
 
-        // 初始化與定時刷新
-        updateUI();
-        setInterval(updateUI, 5000); // 每 5 秒自動同步一次資料
+        // 獲取初始資料
+        async function fetchUserData() {
+            const user = await apiRequest('/me');
+            updateUI(user);
+        }
+
+        // 每 5 秒自動重新整理一次狀態（可選）
+        setInterval(fetchUserData, 5000);
+        
+        // 進入頁面立即執行
+        fetchUserData();
+
     </script>
 </body>
 </html>
