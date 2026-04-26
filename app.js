@@ -11,7 +11,6 @@ const PORT = process.env.PORT || 10000;
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static('client'));
 
 // ===== MongoDB =====
 mongoose.connect(process.env.MONGO_URI);
