@@ -152,6 +152,30 @@
         70% { box-shadow: 0 0 0 10px rgba(251, 188, 5, 0); }
         100% { box-shadow: 0 0 0 0 rgba(251, 188, 5, 0); }
     }
+
+/* 金幣元素樣式 */
+.coin-particle {
+    position: absolute;
+    pointer-events: none;
+    font-size: 24px;
+    z-index: 100;
+    user-select: none;
+    animation: shoot 0.8s ease-out forwards;
+}
+
+/* 噴發動畫 */
+@keyframes shoot {
+    0% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
+    }
+    100% {
+        /* 隨機方向由 JS 控制，這裡提供基礎位移 */
+        transform: translate(var(--tx), var(--ty)) scale(0.5) rotate(var(--tr));
+        opacity: 0;
+    }
+}
+
 </style>
 
 </head>
@@ -290,18 +314,57 @@ async function fetchUserData() {
     updateLeaderboard(); // 更新排行榜
 }
 
-        // 動作處理
-        async function gameAction(path) {
-            const res = await apiRequest(path);
-            if (res) {
-                if (res.msg) {
-                    // 使用 Telegram 原生通知彈窗
-                    tg.showAlert(res.msg);
-                }
-                // 動作完成後重新獲取最新狀態
-                fetchUserData();
-            }
+// 產生金幣噴發特效
+function spawnCoins() {
+    const container = document.querySelector('.main-click-area');
+    const numCoins = 6; // 每次點擊噴出的金幣數量
+
+    for (let i = 0; i < numCoins; i++) {
+        const coin = document.createElement('div');
+        coin.className = 'coin-particle';
+        coin.innerText = '💰';
+        
+        // 初始位置在按鈕中心
+        coin.style.left = '50%';
+        coin.style.top = '50%';
+
+        // 隨機噴射路徑
+        const tx = (Math.random() - 0.5) * 300 + 'px'; // 左右位移 -150~150
+        const ty = (Math.random() - 1) * 200 + 'px';   // 向上位移 -200~0
+        const tr = (Math.random() * 360) + 'deg';      // 隨機旋轉
+
+        coin.style.setProperty('--tx', tx);
+        coin.style.setProperty('--ty', ty);
+        coin.style.setProperty('--tr', tr);
+
+        container.appendChild(coin);
+
+        // 動畫結束後移除元素，避免記憶體洩漏
+        setTimeout(() => {
+            coin.remove();
+        }, 800);
+    }
+}
+
+// 修改原有的 gameAction，在點擊時觸發特效
+async function gameAction(path) {
+    // 如果是點擊動作，先播放動畫與震動，提升即時回饋感
+    if (path === '/click') {
+        spawnCoins();
+        if (window.Telegram && tg.HapticFeedback) {
+            tg.HapticFeedback.impactOccurred('medium');
         }
+    }
+
+    const res = await apiRequest(path);
+    if (res) {
+        if (res.msg && path !== '/click') { // 點擊就不跳 Alert 了，直接看數字跳動
+            tg.showAlert(res.msg);
+        }
+        fetchUserData();
+    }
+}
+
 
         // 獲取初始資料
         async function fetchUserData() {
