@@ -138,6 +138,20 @@ app.post('/shield', verifyTelegramWebAppData, async (req, res) => {
     res.json({ msg: '護盾+60秒', balance: result.balance });
 });
 
+// 排行榜 API：抓取前 10 名
+app.post('/leaderboard', verifyTelegramWebAppData, async (req, res) => {
+    try {
+        const topPlayers = await User.find({})
+            .sort({ balance: -1 }) // 按餘額由高到低排序
+            .limit(10)            // 只取前 10 名
+            .select('username balance'); // 只回傳名稱與餘額，保護隱私
+
+        res.json(topPlayers);
+    } catch (err) {
+        res.status(500).json({ msg: '無法獲取排行榜' });
+    }
+});
+
 // ===== 前端 & Bot =====
 app.use(express.static(path.join(__dirname, 'client')));
 
