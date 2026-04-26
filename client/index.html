@@ -6,31 +6,190 @@
     <title>Rat Game Mini App</title>
     <!-- 1. 引入 Telegram Web App 核心腳本 -->
     <script src="https://telegram.org"></script>
-    <style>
-        body { font-family: sans-serif; text-align: center; padding: 20px; background: #f0f2f5; }
-        .stats { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        button { padding: 15px 30px; font-size: 18px; margin: 10px; border: none; border-radius: 10px; cursor: pointer; transition: 0.2s; }
-        .btn-click { background: #0088cc; color: white; width: 100%; height: 100px; font-weight: bold; }
-        .btn-action { background: #34a853; color: white; }
-        .btn-shield { background: #fbbc05; color: white; }
-        button:active { transform: scale(0.95); opacity: 0.8; }
-    </style>
+<style>
+    :root {
+        --primary-color: #0088cc;
+        --accent-color: #fbbc05;
+        --danger-color: #ff4d4d;
+        --success-color: #2ecc71;
+        --bg-gradient: linear-gradient(135deg, #1d2b64 0%, #f8cdda 100%);
+        --glass-bg: rgba(255, 255, 255, 0.9);
+    }
+
+    body {
+        font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        background: var(--bg-gradient);
+        background-attachment: fixed;
+        margin: 0;
+        padding: 20px;
+        color: #333;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-height: 100vh;
+    }
+
+    /* 玻璃卡片容器 */
+    .container {
+        width: 100%;
+        max-width: 400px;
+        background: var(--glass-bg);
+        border-radius: 24px;
+        padding: 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        backdrop-filter: blur(10px);
+        box-sizing: border-box;
+    }
+
+    /* 頂部玩家資訊 */
+    .user-profile {
+        text-align: center;
+        margin-bottom: 25px;
+    }
+
+    #username {
+        margin: 10px 0 5px;
+        font-size: 24px;
+        color: #1d2b64;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+
+    .stat-card {
+        background: #f0f2f5;
+        padding: 12px;
+        border-radius: 15px;
+        text-align: center;
+    }
+
+    .stat-label { font-size: 12px; color: #666; text-transform: uppercase; }
+    .stat-value { font-size: 18px; font-weight: bold; display: block; color: var(--primary-color); }
+
+    /* 動作按鈕 */
+    .main-click-area {
+        position: relative;
+        margin: 30px 0;
+        text-align: center;
+    }
+
+    .btn-click {
+        width: 160px;
+        height: 160px;
+        background: radial-gradient(circle, #00aaff, #0088cc);
+        border: 8px solid rgba(255,255,255,0.5);
+        border-radius: 50%;
+        color: white;
+        font-size: 22px;
+        font-weight: bold;
+        cursor: pointer;
+        box-shadow: 0 8px 20px rgba(0,136,204,0.4);
+        transition: transform 0.1s, box-shadow 0.2s;
+    }
+
+    .btn-click:active {
+        transform: scale(0.92);
+        box-shadow: 0 4px 10px rgba(0,136,204,0.3);
+    }
+
+    .action-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: center;
+    }
+
+    .btn-sm {
+        flex: 1;
+        min-width: 100px;
+        padding: 12px;
+        border: none;
+        border-radius: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        color: white;
+        transition: 0.2s;
+    }
+
+    .btn-steal { background: var(--danger-color); }
+    .btn-shield { background: var(--accent-color); }
+    .btn-invite { background: var(--success-color); width: 100%; margin-top: 5px; }
+
+    /* 排行榜樣式 */
+    .leaderboard {
+        margin-top: 25px;
+        border-top: 1px solid #ddd;
+        padding-top: 15px;
+    }
+
+    .leaderboard h3 { margin-bottom: 15px; font-size: 18px; color: #444; }
+
+    .leader-item {
+        display: flex;
+        align-items: center;
+        padding: 10px;
+        background: rgba(255,255,255,0.5);
+        border-radius: 10px;
+        margin-bottom: 8px;
+    }
+
+    .rank-num { width: 30px; font-weight: bold; color: #888; }
+    .player-name { flex: 1; font-weight: 500; }
+    .player-bal { font-weight: bold; color: var(--primary-color); }
+
+    /* 護盾特效 */
+    .shield-active {
+        border: 2px solid var(--accent-color);
+        animation: pulse-shield 2s infinite;
+    }
+
+    @keyframes pulse-shield {
+        0% { box-shadow: 0 0 0 0 rgba(251, 188, 5, 0.4); }
+        70% { box-shadow: 0 0 0 10px rgba(251, 188, 5, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(251, 188, 5, 0); }
+    }
+</style>
+
 </head>
 <body>
 
-    <div class="stats">
-        <h2 id="username">載入中...</h2>
-        <p>餘額: <span id="balance">0</span> 💰</p>
-<p>目前排名: 第 <span id="my-rank">--</span> 名</p>
-        <p id="shield-status">🛡️ 無護盾</p>
-    <h3>🏆 全服排行榜</h3>
-    <ul id="leaderboard-list" style="list-style: none; padding: 0; text-align: left;">
-        <li>載入中...</li>
-    </ul>
+    <div class="container" id="app-container">
+        <div class="user-profile">
+            <h2 id="username">載入中...</h2>
+            <div id="shield-status" style="font-size: 13px; font-weight: bold; color: #fbbc05;">🛡️ 無護盾</div>
+        </div>
 
-    <button class="btn-action" onclick="shareInvite()" style="background: #0088cc;">
-        📢 邀請好友 (賺 100 💰)
-    </button>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <span class="stat-label">錢包餘額</span>
+                <span class="stat-value"><span id="balance">0</span> 💰</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">全球排名</span>
+                <span class="stat-value">#<span id="my-rank">--</span></span>
+            </div>
+        </div>
+
+        <div class="main-click-area">
+            <button class="btn-click" onclick="gameAction('/click')">PUSH!</button>
+        </div>
+
+        <div class="action-group">
+            <button class="btn-sm btn-steal" onclick="gameAction('/steal')">🥷 偷取</button>
+            <button class="btn-sm btn-shield" onclick="gameAction('/shield')">🛡️ 護盾</button>
+            <button class="btn-sm btn-invite" onclick="shareInvite()">📢 邀請好友賺 100 💰</button>
+        </div>
+
+        <div class="leaderboard">
+            <h3>🏆 全服排行榜</h3>
+            <div id="leaderboard-list">
+                <!-- 排行榜項目會動態插入 -->
+            </div>
+        </div>
     </div>
 
     <button class="btn-click" onclick="gameAction('/click')">按我賺錢！(+1)</button><br>
@@ -69,19 +228,24 @@
 
         // 更新介面
         function updateUI(user) {
-            if (!user) return;
-            document.getElementById('username').innerText = `🐭 ${user.username}`;
-            document.getElementById('balance').innerText = user.balance;
-document.getElementById('my-rank').innerText = user.rank; // 顯示排名
+    if (!user) return;
+    document.getElementById('username').innerText = `🐭 ${user.username}`;
+    document.getElementById('balance').innerText = user.balance.toLocaleString();
+    document.getElementById('my-rank').innerText = user.rank;
     
-            
-            const shieldRemaining = user.shieldUntil - Date.now();
-            if (shieldRemaining > 0) {
-                document.getElementById('shield-status').innerText = `🛡️ 護盾剩下 ${Math.ceil(shieldRemaining/1000)} 秒`;
-            } else {
-                document.getElementById('shield-status').innerText = '🛡️ 無護盾';
-            }
-        }
+    const container = document.getElementById('app-container');
+    const shieldStatus = document.getElementById('shield-status');
+    const shieldRemaining = user.shieldUntil - Date.now();
+    
+    if (shieldRemaining > 0) {
+        container.classList.add('shield-active');
+        shieldStatus.innerText = `🛡️ 護盾剩餘 ${Math.ceil(shieldRemaining/1000)} 秒`;
+    } else {
+        container.classList.remove('shield-active');
+        shieldStatus.innerText = '🛡️ 無護盾';
+    }
+}
+
 
 //邀請參數
 function shareInvite() {
