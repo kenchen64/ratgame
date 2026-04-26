@@ -1,63 +1,55 @@
 import { useEffect, useState } from "react";
 import { api } from "./api";
 
-export default function App() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(false);
+export default function App(){
+  const [user,setUser] = useState(null);
+  const [effect,setEffect] = useState("");
 
-  async function load() {
-    const data = await api("/me");
-    setUser(data);
+  async function load(){
+    const u = await api('/me');
+    setUser(u);
   }
 
-  async function clickCoin() {
-    setLoading(true);
-    await api("/click");
-    await load();
-    setLoading(false);
-  }
-
-  async function steal() {
-    setLoading(true);
-    const res = await api("/steal");
-    alert(res.msg);
-    await load();
-    setLoading(false);
-  }
-
-  async function shield() {
-    setLoading(true);
-    const res = await api("/shield");
-    alert(res.msg);
-    await load();
-    setLoading(false);
-  }
-
-  useEffect(() => {
+  async function click(){
+    const res = await api('/click');
+    setEffect("💥");
+    setTimeout(()=>setEffect(""),300);
     load();
-  }, []);
+  }
 
-  if (!user) return <div className="loading">Loading...</div>;
+  async function steal(){
+    const res = await api('/steal');
+    alert(res.msg);
+    setEffect("⚔️");
+    load();
+  }
+
+  async function shield(){
+    const res = await api('/shield');
+    alert(res.msg);
+    load();
+  }
+
+  useEffect(()=>{ load(); },[]);
+
+  if(!user) return <div>Loading...</div>;
 
   return (
-    <div className="container">
+    <div className="game">
 
-      {/* HUD */}
       <div className="hud">
-        <div>👤 {user.username}</div>
-        <div>🧀 {user.balance}</div>
+        👤 {user.username} | 🧀 {user.balance}
       </div>
 
-      {/* 主按鈕 */}
-      <button className="main-btn" onClick={clickCoin}>
-        {loading ? "..." : "🖱 點擊賺起司"}
-      </button>
+      <div className="click-area" onClick={click}>
+        🐭
+        <div className="effect">{effect}</div>
+      </div>
 
-      {/* 功能列 */}
       <div className="actions">
         <button onClick={steal}>⚔️ 偷</button>
         <button onClick={shield}>🛡️ 護盾</button>
-        <button onClick={load}>🔄 更新</button>
+        <button onClick={load}>🔄</button>
       </div>
 
     </div>
