@@ -122,6 +122,51 @@ function clearState(id){
 
 function getState(id){return FSM.state[id];}
 
+// 後端 API
+app.use(express.static('public'));
+app.use(express.json());
+// 取得資料
+app.post('/me', async (req,res)=>{
+  const u = await getUser(req.body.telegramId);
+  res.json(u);
+});
+// 點擊
+app.post('/click', async (req,res)=>{
+  const u = await getUser(req.body.telegramId);
+  if(Date.now()-u.lastClick<3000){
+    return res.json({msg:'太快'});
+  }
+  u.lastClick = Date.now();
+  u.balance += 1;
+  await u.save();
+  res.json({ok:true});
+});
+// 偷
+app.post('/steal', async (req,res)=>{
+  const attacker = await getUser(req.body.telegramId);
+  const users = await User.find({telegramId:{$ne:attacker.telegramId}});
+  if(users.length===0) return res.json({msg:'沒人'});
+  const target = users[Math.floor(Math.random()*users.length)];
+  if(Date.now() < target.shieldUntil)
+    return res.json({msg:'對方有盾'});
+  const steal = Math.floor(target.balance*0.2);
+  target.balance -= steal;
+  attacker.balance += steal;
+  await target.save();
+  await attacker.save();
+  res.json({msg:`偷到 ${steal}`});
+});
+// 護盾
+app.post('/shield', async (req,res)=>{
+  const u = await getUser(req.body.telegramId);
+  if(u.balance<50) return res.json({msg:'不足'});
+  u.balance -= 50;
+  const base = u.shieldUntil>Date.now()?u.shieldUntil:Date.now();
+  u.shieldUntil = base + 60000;
+  await u.save();
+  res.json({msg:'護盾開啟'});
+});
+
 // ===== UI =====
 function menu(){
   return {
@@ -146,19 +191,18 @@ async function safeSend(ctx, text){
 }
 
 // ===== START =====
-bot.start(async ctx=>{
-  clearState(ctx.from.id);
-  const user = await getUser(ctx.from.id, ctx.from.username);
-  resetTasks(user);
-  // ===== 每日登入 =====
-  if (!user.tasks.daily.login) {
-    user.tasks.daily.login = true;
-    user.tasks.weekly.loginDays += 1;
-  }
-  
-  await user.save();
-  
-  ctx.reply('🐭 歡迎回來，登入成功', menu());
+bot.start((ctx)=>{
+  ctx.reply('🐭 Rat Game', {
+    reply_markup:{
+      keyboard:[
+        [{
+          text:'🎮 開啟遊戲',
+          web_app:{ url: process.env.WEBAPP_URL }
+        }]
+      ],
+      resize_keyboard:true
+    }
+  });
 });
 
 // ===== CALLBACK =====
