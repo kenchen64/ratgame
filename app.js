@@ -10,7 +10,10 @@ const app = express();
 const bot = new Telegraf(process.env.BOT_TOKEN);
 const PORT = process.env.PORT || 10000;
 
-app.use(cors());
+app.use(cors({
+    origin: '*', // 允許所有來源連線
+    allowedHeaders: ['Content-Type', 'x-telegram-init-data'] // ⚠️ 必須明確允許這個自定義 Header
+}));
 app.use(express.json());
 
 // ===== MongoDB 連線 =====
