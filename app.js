@@ -121,6 +121,7 @@ bot.start(async ctx=>{
   clearState(ctx.from.id);
   const user = await getUser(ctx.from.id, ctx.from.username);
   user.tasks.daily.login = true;
+  user.tasks.weekly.loginDays += 1;
   await user.save();
   
   ctx.reply('🐭 歡迎回來，登入成功', menu());
