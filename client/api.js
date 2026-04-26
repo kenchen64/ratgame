@@ -1,15 +1,30 @@
 const tg = window.Telegram.WebApp;
-const user = tg.initDataUnsafe.user;
+tg.expand();
+
+const BASE_URL = window.location.origin;
 
 export async function api(path, data = {}) {
-  const res = await fetch(path, {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({
-      telegramId: user.id,
-      ...data
-    })
-  });
+  const user = tg.initDataUnsafe?.user;
 
-  return res.json();
+  if (!user) {
+    alert("❌ 無法取得 Telegram 使用者");
+    return;
+  }
+
+  try {
+    const res = await fetch(BASE_URL + path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        telegramId: user.id,
+        username: user.username,
+        ...data
+      })
+    });
+
+    return await res.json();
+  } catch (err) {
+    console.error(err);
+    alert("API錯誤");
+  }
 }
