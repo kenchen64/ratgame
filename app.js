@@ -125,6 +125,7 @@ function getState(id){return FSM.state[id];}
 // 後端 API
 app.use(express.static('public'));
 app.use(express.json());
+app.use(express.static('client'));
 // 取得資料
 app.post('/me', async (req,res)=>{
   const u = await getUser(req.body.telegramId);
