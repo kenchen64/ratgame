@@ -5,14 +5,45 @@ body{
   text-align:center;
 }
 
+.hud{
+  padding:10px;
+  background:#1e293b;
+}
+
+.hp-bar{
+  width:90%;
+  height:20px;
+  background:#333;
+  margin:10px auto;
+  border-radius:10px;
+}
+.hp-bar div{
+  height:100%;
+  background:red;
+}
+
+.exp-bar{
+  width:90%;
+  height:10px;
+  background:#333;
+  margin:5px auto;
+}
+.exp-bar div{
+  height:100%;
+  background:yellow;
+}
+
 .click-area{
   font-size:80px;
-  margin-top:50px;
+  margin-top:30px;
   animation:pulse 1s infinite;
+  position:relative;
 }
 
 .effect{
   position:absolute;
+  left:50%;
+  transform:translateX(-50%);
   font-size:40px;
   animation:pop 0.3s;
 }
@@ -26,4 +57,12 @@ body{
   0%{transform:scale(1);}
   50%{transform:scale(1.1);}
   100%{transform:scale(1);}
+}
+
+.actions button{
+  margin:10px;
+  padding:15px;
+  border-radius:10px;
+  background:#334155;
+  color:white;
 }
