@@ -10,17 +10,31 @@ const PORT = process.env.PORT || 10000;
 
 app.use(express.json());
 
-// ===== DB =====
+// ===== Mongo =====
 mongoose.connect(process.env.MONGO_URI);
 
-// ===== Schema =====
+// ===== 玩家 Schema =====
 const User = mongoose.model('User', new mongoose.Schema({
   telegramId:String,
   username:String,
   balance:{type:Number,default:0},
+  level:{type:Number,default:1},
+  exp:{type:Number,default:0},
+  hp:{type:Number,default:100},
+  maxHp:{type:Number,default:100},
   lastClick:{type:Number,default:0},
   shieldUntil:{type:Number,default:0}
 }));
+
+function calcLevel(u){
+  const need = u.level * 20;
+  if(u.exp >= need){
+    u.exp = 0;
+    u.level += 1;
+    u.maxHp += 20;
+    u.hp = u.maxHp;
+  }
+}
 
 async function getUser(id, username){
   let u = await User.findOne({telegramId:id});
@@ -39,20 +53,27 @@ app.post('/me', async (req,res)=>{
   res.json(u);
 });
 
+// 點擊（攻擊+經驗）
 app.post('/click', async (req,res)=>{
   const u = await getUser(req.body.telegramId);
 
-  if(Date.now()-u.lastClick<1500){
+  if(Date.now()-u.lastClick < 1200){
     return res.json({msg:'⏳ 太快'});
   }
 
   u.lastClick = Date.now();
-  u.balance += 1;
+
+  const dmg = Math.floor(Math.random()*5)+1;
+  u.balance += dmg;
+  u.exp += dmg;
+
+  calcLevel(u);
   await u.save();
 
-  res.json({msg:'+1'});
+  res.json({msg:`💥 +${dmg}`});
 });
 
+// 偷（戰鬥）
 app.post('/steal', async (req,res)=>{
   const attacker = await getUser(req.body.telegramId);
   const users = await User.find({telegramId:{$ne:attacker.telegramId}});
@@ -65,17 +86,26 @@ app.post('/steal', async (req,res)=>{
     return res.json({msg:'🛡️ 對方有盾'});
   }
 
-  const steal = Math.max(1, Math.floor(target.balance*0.2));
+  const dmg = Math.floor(Math.random()*10)+5;
+  target.hp -= dmg;
 
-  target.balance -= steal;
-  attacker.balance += steal;
+  let msg = `⚔️ 攻擊 ${target.username} -${dmg}HP`;
 
-  await target.save();
+  if(target.hp <= 0){
+    const reward = Math.max(1, Math.floor(target.balance*0.3));
+    attacker.balance += reward;
+    target.balance -= reward;
+    target.hp = target.maxHp;
+    msg += `\n💀 擊敗！+${reward}`;
+  }
+
   await attacker.save();
+  await target.save();
 
-  res.json({msg:`🐭 偷到 ${steal}`});
+  res.json({msg});
 });
 
+// 護盾
 app.post('/shield', async (req,res)=>{
   const u = await getUser(req.body.telegramId);
 
@@ -97,7 +127,7 @@ app.get('*',(req,res)=>{
   res.sendFile(path.join(__dirname,'client','index.html'));
 });
 
-// ===== BOT =====
+// ===== Bot =====
 bot.start((ctx)=>{
   ctx.reply('🎮 Rat Game', {
     reply_markup:{
@@ -112,7 +142,7 @@ bot.start((ctx)=>{
   });
 });
 
-// ===== webhook =====
+// webhook
 app.use(bot.webhookCallback('/bot'));
 bot.telegram.setWebhook(process.env.WEBHOOK_URL + '/bot');
 
