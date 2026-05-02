@@ -1,0 +1,29 @@
+body{
+  margin:0;
+  background:#0f172a;
+  color:white;
+  text-align:center;
+}
+
+.click-area{
+  font-size:80px;
+  margin-top:50px;
+  animation:pulse 1s infinite;
+}
+
+.effect{
+  position:absolute;
+  font-size:40px;
+  animation:pop 0.3s;
+}
+
+@keyframes pop{
+  from{transform:scale(0);}
+  to{transform:scale(1);}
+}
+
+@keyframes pulse{
+  0%{transform:scale(1);}
+  50%{transform:scale(1.1);}
+  100%{transform:scale(1);}
+}
