@@ -1,7 +1,7 @@
 const tg = window.Telegram.WebApp;
 tg.expand();
 
-const BASE = window.location.origin;
+const BASE = "https://ratgame.onrender.com";
 
 export async function api(path, data = {}) {
   const user = tg.initDataUnsafe?.user;
